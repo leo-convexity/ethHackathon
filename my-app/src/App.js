@@ -1,4 +1,3 @@
-import logo from './logo.svg';
 import './App.css';
 import React from 'react';
 //copy pasted the config file from api-guide-example 
@@ -51,6 +50,39 @@ class EthButton extends React.Component {
   }
 }
 
+//a form that takes a number input from the user
+class DepositForm extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {value: ''};
+
+    this.handleChange = this.handleChange.bind(this);
+    this.handleSubmit = this.handleSubmit.bind(this);
+  }
+
+  handleChange(event) {
+    this.setState({value: event.target.value});
+  }
+
+  handleSubmit(event) {
+    alert('You want to deposit ' + this.state.value + ' USDC');
+    event.preventDefault();
+  }
+
+  render() {
+    return (
+      <form onSubmit={this.handleSubmit}>
+        <label>
+          Fixed Rate Deposit Amount :
+          <input type="number" value={this.state.value} onChange={this.handleChange} />
+        </label>
+        <input type="submit" value="Deposit" />
+      </form>
+    );
+  }
+}
+
+
 function App() {
  
   {/*
@@ -68,11 +100,13 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        Your etherum address
+        The cUSDC Exchange Rate is :
         <Info/>
         <br />
+        Your Ethereum Wallet Address is :
         <EthButton/>
-        
+        <br />
+        <DepositForm/>
       </header>
     </div>
   );
