@@ -5,13 +5,15 @@ import React from 'react';
 const config = require('./config.json');
 
 const Web3 = require('web3');
-
-const web3 = new Web3('https://eth-rinkeby.alchemyapi.io/v2/yAbFcy0SwtMi5lh2b9W-T_E6ZW-zEqIG');
+//changed to givenProvider to see if we can work with MetaMask
+//set MetaMask to rinkleby to make sure the ABI and contract addresses work
+const web3 = new Web3(Web3.givenProvider);
 
 //here are the cUSDC address and ABI
 const cUsdcAddress = config.cUsdcAddress;
 const cUsdcAbi = config.cUsdcAbi;
 const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
+const ethereum = window.ethereum;
 
 //clicking the button updates the current exchange rate
 class Info extends React.Component {
@@ -31,24 +33,46 @@ class Info extends React.Component {
     );
   }
 }
+//add button that connects to metamask
+class EthButton extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {value: "Connect MetaMask"};
+  }
+  render() {
+    return (
+       <button onClick={
+        () => ethereum.request({ method: 'eth_requestAccounts' }).then(
+                result => this.setState({value: result})
+      )}>
+      {this.state.value}
+      </button>
+    );
+  }
+}
 
 function App() {
+ 
+  {/*
+  //bit of code to test on console to see how the account changes work
+    if (ethereum) {
+    ethereum.on('accountsChanged', function (accounts){
+      //time to reload your interface with accounts[0]!
+      console.log(accounts[0])
+    })
+  
+  }
+*/}
+  
+
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload to see the changes.
-        </p>
+        Your etherum address
         <Info/>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
+        <br />
+        <EthButton/>
+        
       </header>
     </div>
   );
