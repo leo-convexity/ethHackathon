@@ -7,13 +7,17 @@ const config = require('./config_mainnet.json');
 
 const Web3 = require('web3' || "http://127.0.0.1:8545");
 //changed to givenProvider to see if we can work with MetaMask
-//set MetaMask to rinkleby to make sure the ABI and contract addresses work
 const web3 = new Web3(Web3.givenProvider);
-
 //here are the cUSDC address and ABI
 const cUsdcAddress = config.cUsdcAddress;
 const cUsdcAbi = config.cUsdcAbi;
-//const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
+const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
+
+//here we build the USDC contract and ABI
+const usdcAddress = config.usdcAddress;
+const usdcAbi = config.usdcAbi;
+const usdcContract = new web3.eth.Contract(usdcAbi, usdcAddress);
+
 const ethereum = window.ethereum;
 
 //calculating fixed rate deposits
@@ -60,12 +64,9 @@ class Ticker extends Component{
     this.loadBlockchainData()
   }
   async loadBlockchainData () {
-    const network = await web3.eth.net.getNetworkType()
-    console.log("network : " + network)
     const accounts = await web3.eth.getAccounts()
     this.setState({account: accounts[0]})
     console.log('acccount : ' +accounts[0])
-    const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress)
     this.setState({ cUsdcContract })
     const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()
     this.setState({ exchangeRateCurrent})
@@ -117,8 +118,13 @@ class DepositForm extends React.Component {
     this.setState({value: event.target.value});
   }
 
-  handleSubmit(event) {
+  async handleSubmit(event) {
     //this is where we ask smart contracts
+    //deposit will be a mint
+    //the contract will ask for approval first
+    const accounts = await web3.eth.getAccounts()
+    const adj_allowance = await usdcContract.methods.allowance(accounts[0], cUsdcAddress).call();
+    console.log(adj_allowance)
     alert('You want to deposit ' + this.state.value + ' USDC');
     event.preventDefault();
   }
@@ -170,5 +176,7 @@ function App() {
     </div>
   );
 }
+
+
 
 export default App;
