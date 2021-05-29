@@ -101,7 +101,7 @@ if side < 0:
         else:
             exit()
 
-#changed to .send for mint. lets see what happens
+#changed back to call. send didn't work
 result = function.call(transaction_template)
 print(f'transaction call result: {result}')
 
