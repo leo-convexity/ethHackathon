@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-<<<<<<< HEAD
-=======
 import json
->>>>>>> 50b609a22012bacc5472c40eeb7463fa8bb75513
 import decimal
 import web3
 from collections import namedtuple
