@@ -16,7 +16,7 @@ const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
 const ethereum = window.ethereum;
 
 const styles = {
-  
+  marginTop: -300,
   height: 50,
   backgroundColor: 'green'
 };
