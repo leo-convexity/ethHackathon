@@ -15,6 +15,18 @@ const cUsdcAbi = config.cUsdcAbi;
 const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
 const ethereum = window.ethereum;
 
+//calculating fixed rate deposits
+//expiryDate should come from the smartContract that defines the cTokenFuture
+const expiryDate = new Date('June 25 2021');
+const timeLeft = 0;
+const dayCount = 0;
+
+//creating variables that will later reference the blockchain - will need to make this so it somehow updates if something changes 
+var exchangeRateCurrent = 0.024545464;
+var cTokenFuturePrice = 0.02545454;
+var fixedImpliedRate = cTokenFuturePrice/exchangeRateCurrent;
+
+
 const styles = {
   marginTop: -300,
   height: 50,
@@ -89,6 +101,7 @@ class DepositForm extends React.Component {
   }
 }
 
+
 class FixedRate extends React.Component{
   constructor(props){
     super(props);
@@ -96,7 +109,7 @@ class FixedRate extends React.Component{
   render(){
     return (
         <div>
-          Your Fixed Rate will be x%
+          Your Fixed Rate will be {fixedImpliedRate}%
         </div>
     )
   }
