@@ -75,7 +75,7 @@ deadline = int(time.time()) + 30
 #redeeming looks at the cToken balance, minting will look at the USDC balance
 if side > 0: 
     max_spend = max(0, cusdc_balance - 10**18) 
-    value = max_spend
+    value = 0
     function = cUSDC.contract.functions.redeem(adj_quantity)
 elif side < 0:
     min_receive = 0
