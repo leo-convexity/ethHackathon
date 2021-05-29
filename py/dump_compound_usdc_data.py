@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.8
+#!/usr/bin/env python3
 '''
 dump_compound_usdc_data.py
 
@@ -6,15 +6,24 @@ Query local ethereum blockchain for Compound data
 
 Requires web3 package to be installed.
 
-To setup:
-    # Create python virtual environment
-    python3.8 -m venv venv
+To setup (only need to do this once):
+    # Create python virtual environment (it can be outside of the git checkout tree)
+    python3 -m venv ~/venv
 
-    # Activate python virtual environment
-    . venv/bin/activate
+    # Activate python virtual environment (shell prompt should change)
+    . ~/venv/bin/activate
 
-    # Install/update pip & web3
+    # Install/update pip, wheel & web
     pip install --upgrade pip
+    pip install --upgrade wheel
+    pip install --upgrade web3
+
+    # When finished using virtual environment, run deactive or just exit shell
+    deactivate
+
+To use virtual environment later again (web3 and other modules will already be there):
+    # Activate python virtual environment (shell prompt should change)
+    . ~/venv/bin/activate
 '''
 import json
 import decimal
@@ -43,7 +52,7 @@ assert cfgs['cTokens']['cUSDC']['decimals'] == 8
 assert contract_cUSDC.functions.symbol().call() == 'cUSDC'
 assert contract_cUSDC.functions.decimals().call() == 8
 
-blockNumber = w3.eth.block_number()
+blockNumber = w3.eth.blockNumber
 print()
 print('# Ethereum')
 print(f'{"blockNumber":<24} {blockNumber:>24,d}')
