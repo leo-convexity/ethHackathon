@@ -29,7 +29,6 @@ var fixedImpliedRate = (cTokenFuturePrice/exchangeRateCurrent-1)*(1/dayCount)*10
 console.log('exchangeRateCurrent = ' + exchangeRateCurrent);
 
 const styles = {
-  marginTop: -300,
   height: 50,
   backgroundColor: 'green'
 };
@@ -119,8 +118,8 @@ class FixedRate extends React.Component{
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
+    <div className="container">
+      
         <EthButton/>
         <br />        
         The cUSDC Exchange Rate is :
@@ -129,7 +128,7 @@ function App() {
         <DepositForm/>
         <br />
         <FixedRate />
-      </header>
+
     </div>
   );
 }
