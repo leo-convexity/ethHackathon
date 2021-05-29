@@ -18,14 +18,15 @@ const ethereum = window.ethereum;
 //calculating fixed rate deposits
 //expiryDate should come from the smartContract that defines the cTokenFuture
 const expiryDate = new Date('June 25 2021');
-const timeLeft = 0;
-const dayCount = 0;
-
+var today = new Date();
+var msPerYear = 24 * 60 * 60 * 1000 *365; // Number of milliseconds per year
+var dayCount = (expiryDate.getTime() - today.getTime()) / msPerYear; //returns the daycount in terms of fraction of year left in milliseconds
+console.log('daycount = ' + dayCount);
 //creating variables that will later reference the blockchain - will need to make this so it somehow updates if something changes 
-var exchangeRateCurrent = cUsdcContract.methods.exchangeRateCurrent().call();
-var cTokenFuturePrice = 0.02545454;
-var fixedImpliedRate = cTokenFuturePrice/exchangeRateCurrent;
-
+var exchangeRateCurrent = 0.02222;
+var cTokenFuturePrice = 0.022645;
+var fixedImpliedRate = (cTokenFuturePrice/exchangeRateCurrent-1)*(1/dayCount)*100;
+console.log('exchangeRateCurrent = ' + exchangeRateCurrent);
 
 const styles = {
   marginTop: -300,
@@ -117,10 +118,6 @@ class FixedRate extends React.Component{
 
 
 function App() {
- 
-  
-  
-
   return (
     <div className="App">
       <header className="App-header">
