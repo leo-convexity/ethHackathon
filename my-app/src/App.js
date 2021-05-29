@@ -3,9 +3,9 @@ import React, { Component } from 'react';
 import { render } from 'react-dom';
 
 //copy pasted the config file from api-guide-example 
-const config = require('./config.json');
+const config = require('./config_mainnet.json');
 
-const Web3 = require('web3' || "http://localhost:8545");
+const Web3 = require('web3' || "http://127.0.0.1:8545");
 //changed to givenProvider to see if we can work with MetaMask
 //set MetaMask to rinkleby to make sure the ABI and contract addresses work
 const web3 = new Web3(Web3.givenProvider);
@@ -13,7 +13,7 @@ const web3 = new Web3(Web3.givenProvider);
 //here are the cUSDC address and ABI
 const cUsdcAddress = config.cUsdcAddress;
 const cUsdcAbi = config.cUsdcAbi;
-const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
+//const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
 const ethereum = window.ethereum;
 
 //calculating fixed rate deposits
@@ -35,6 +35,7 @@ const styles = {
 };
 
 //clicking the button updates the current exchange rate
+/*
 class Info extends React.Component {
   constructor(props) {
     super(props);
@@ -52,7 +53,7 @@ class Info extends React.Component {
     );
   }
 }
-
+*/
 class Ticker extends Component{
 
   componentDidMount(){
@@ -61,12 +62,26 @@ class Ticker extends Component{
   async loadBlockchainData () {
     const network = await web3.eth.net.getNetworkType()
     console.log("network : " + network)
+    const accounts = await web3.eth.getAccounts()
+    this.setState({account: accounts[0]})
+    console.log('acccount : ' +accounts[0])
+    const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress)
+    this.setState({ cUsdcContract })
+    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()
+    this.setState({ exchangeRateCurrent})
 
+  }
+
+  constructor(props){
+    super(props)
+    this.state = { account: ''}
   }
 
   render(){
     return (
-      <div>text</div>
+      <div>
+        <h1>cUSDC exchange rate : {this.state.exchangeRateCurrent}</h1>
+      </div>
     );
   }
 }
@@ -94,7 +109,6 @@ class DepositForm extends React.Component {
   constructor(props) {
     super(props);
     this.state = {value: ''};
-
     this.handleChange = this.handleChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
   }
@@ -104,22 +118,28 @@ class DepositForm extends React.Component {
   }
 
   handleSubmit(event) {
+    //this is where we ask smart contracts
     alert('You want to deposit ' + this.state.value + ' USDC');
     event.preventDefault();
   }
 
   render() {
     return (
-      <form onSubmit={this.handleSubmit}>
-        <label>
-          Fixed Rate Deposit Amount :
-          <input type="number" value={this.state.value} onChange={this.handleChange} />
-        </label>
-        <input type="submit" value="Deposit" />
-      </form>
+      <div className="input-group mb-3">
+          <input type="number" className="form-control" placeholder="USDC Amount" aria-label="depositAmountInput" aria-describedby="basic-addon2" value={this.state.value} onChange={this.handleChange} />
+          <div className="input-group-append">
+          <button className="btn btn-outline-secondary" type="button" onClick={this.handleSubmit}>Deposit</button>
+          </div>
+      </div>
+     // <form onSubmit={this.handleSubmit}>
+     //       Fixed Rate Deposit Amount :
+     //     <input className = "form-control form-control-lg" type="number"  />
+     //   <input type="submit" value="Deposit" />
+      //</form>
     );
   }
 }
+
 
 
 class FixedRate extends React.Component{
@@ -141,10 +161,7 @@ function App() {
     <div className="container">
       
         <EthButton/>
-        <Ticker />
-        <br />        
-        The cUSDC Exchange Rate is :
-        <Info />
+        <Ticker />       
         <br />
         <DepositForm/>
         <br />
