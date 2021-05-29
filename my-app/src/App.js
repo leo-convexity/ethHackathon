@@ -1,10 +1,11 @@
 import style from './App.css';
-import React from 'react';
+import React, { Component } from 'react';
+import { render } from 'react-dom';
 
 //copy pasted the config file from api-guide-example 
 const config = require('./config.json');
 
-const Web3 = require('web3');
+const Web3 = require('web3' || "http://localhost:8545");
 //changed to givenProvider to see if we can work with MetaMask
 //set MetaMask to rinkleby to make sure the ABI and contract addresses work
 const web3 = new Web3(Web3.givenProvider);
@@ -51,6 +52,25 @@ class Info extends React.Component {
     );
   }
 }
+
+class Ticker extends Component{
+
+  componentDidMount(){
+    this.loadBlockchainData()
+  }
+  async loadBlockchainData () {
+    const network = await web3.eth.net.getNetworkType()
+    console.log("network : " + network)
+
+  }
+
+  render(){
+    return (
+      <div>text</div>
+    );
+  }
+}
+
 //add button that connects to metamask
 class EthButton extends React.Component {
   constructor(props) {
@@ -121,6 +141,7 @@ function App() {
     <div className="container">
       
         <EthButton/>
+        <Ticker />
         <br />        
         The cUSDC Exchange Rate is :
         <Info />
