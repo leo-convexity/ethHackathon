@@ -1,5 +1,6 @@
-import './App.css';
+import style from './App.css';
 import React from 'react';
+
 //copy pasted the config file from api-guide-example 
 const config = require('./config.json');
 
@@ -14,6 +15,12 @@ const cUsdcAbi = config.cUsdcAbi;
 const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
 const ethereum = window.ethereum;
 
+const styles = {
+  
+  height: 50,
+  backgroundColor: 'green'
+};
+
 //clicking the button updates the current exchange rate
 class Info extends React.Component {
   constructor(props) {
@@ -22,7 +29,7 @@ class Info extends React.Component {
   }
   render() {
     return (
-      <button className="square" onClick={
+      <button onClick={
         () => cUsdcContract.methods.exchangeRateCurrent().call().then(
                 result => this.setState({value: result/1e16})
               )
@@ -40,7 +47,7 @@ class EthButton extends React.Component {
   }
   render() {
     return (
-       <button onClick={
+       <button style = {styles} onClick={
         () => ethereum.request({ method: 'eth_requestAccounts' }).then(
                 result => this.setState({value: result})
       )}>
@@ -82,31 +89,36 @@ class DepositForm extends React.Component {
   }
 }
 
+class FixedRate extends React.Component{
+  constructor(props){
+    super(props);
+  }
+  render(){
+    return (
+        <div>
+          Your Fixed Rate will be x%
+        </div>
+    )
+  }
+}
+
 
 function App() {
  
-  {/*
-  //bit of code to test on console to see how the account changes work
-    if (ethereum) {
-    ethereum.on('accountsChanged', function (accounts){
-      //time to reload your interface with accounts[0]!
-      console.log(accounts[0])
-    })
   
-  }
-*/}
   
 
   return (
     <div className="App">
       <header className="App-header">
-        The cUSDC Exchange Rate is :
-        <Info/>
-        <br />
-        Your Ethereum Wallet Address is :
         <EthButton/>
+        <br />        
+        The cUSDC Exchange Rate is :
+        <Info />
         <br />
         <DepositForm/>
+        <br />
+        <FixedRate />
       </header>
     </div>
   );

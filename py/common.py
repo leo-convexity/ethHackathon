@@ -1,4 +1,4 @@
-#!/usr/bin/env pythoan3
+#!/usr/bin/env python3
 import decimal
 
 def D(x: int, decimals: int = 0):

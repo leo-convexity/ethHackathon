@@ -27,7 +27,7 @@ To use virtual environment later again (web3 and other modules will already be t
 '''
 import json
 import decimal
-import web3
+import web3 
 
 def D(x: int, decimals: int = 0):
     '''Convert integer to scaled decimal'''
@@ -35,7 +35,7 @@ def D(x: int, decimals: int = 0):
     y /= 10**decimals
     return y
 
-w3 = web3.Web3(provider=web3.Web3.HTTPProvider('http://127.0.0.1:8545'))
+w3 = web3.Web3(provider=web3.Web3.HTTPProvider('https://eth-mainnet.alchemyapi.io/v2/yAbFcy0SwtMi5lh2b9W-T_E6ZW-zEqIG'))
 assert w3.isConnected(), 'not connected'
 assert not w3.eth.syncing, f'not synced: {w3.eth.syncing}'
 
