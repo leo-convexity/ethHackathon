@@ -22,7 +22,7 @@ const timeLeft = 0;
 const dayCount = 0;
 
 //creating variables that will later reference the blockchain - will need to make this so it somehow updates if something changes 
-var exchangeRateCurrent = 0.024545464;
+var exchangeRateCurrent = cUsdcContract.methods.exchangeRateCurrent().call();
 var cTokenFuturePrice = 0.02545454;
 var fixedImpliedRate = cTokenFuturePrice/exchangeRateCurrent;
 
