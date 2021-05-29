@@ -79,6 +79,24 @@ elif side < 0:
     function = UNISWAP.contract.functions.swapExactTokensForETH(adj_quantity, min_receive, [token.contract.address, WETH.contract.address], account, deadline)
 
 transaction_template = {'from': account, 'value': value}
+
+# Check token approval if selling tokens
+if side < 0:
+    adj_allowance = token.contract.functions.allowance(account, UNISWAP.contract.address).call()
+    if adj_allowance < adj_quantity:
+        print(f'{token.symbol} token allowance for {account} is {adj_allowance} which is too low, increase (y/n) ?')
+        reply = input()
+        if reply.strip().lower() == 'y':
+            transaction_hash = token.contract.functions.approve(UNISWAP.contract.address, adj_quantity).transact({'from': account})
+            print(f'transaction hash: {transaction_hash}')
+            result = w3.eth.wait_for_transaction_receipt(transaction_hash, timeout=120, poll_latency=0.1)
+            # This sort of makes the transaction receipt more readable
+            adj_result = dict(result)
+            adj_result['logs'] = list(map(dict, adj_result['logs']))
+            pprint(adj_result)
+        else:
+            exit()
+
 result = function.call(transaction_template)
 print(f'transaction call result: {result}')
 
