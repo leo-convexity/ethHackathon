@@ -53,8 +53,7 @@ const main = async function() {
 
   console.log(`${assetName} supplied to the Compound Protocol:`, balanceOfUnderlying, '\n');
 
-  let cTokenBalance = await cTokenContract.methods.
-    balanceOf(myWalletAddress).call() / 1e8;
+  let cTokenBalance = await cTokenContract.methods.balanceOf(myWalletAddress).call() / 1e8;
   console.log(`My wallet's c${assetName} Token Balance:`, cTokenBalance);
 
   let underlyingBalance = await underlyingContract.methods.balanceOf(myWalletAddress).call();

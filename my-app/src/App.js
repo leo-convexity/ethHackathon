@@ -4,6 +4,7 @@ import { render } from 'react-dom';
 
 //copy pasted the config file from api-guide-example 
 const config = require('./config_mainnet.json');
+const config1 = require('./compound-config/networks/mainnet-abi.json');
 const Web3 = require('web3' || "http://127.0.0.1:8545");
 
 //changed to givenProvider to see if we can work with MetaMask
