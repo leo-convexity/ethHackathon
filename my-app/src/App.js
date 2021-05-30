@@ -138,7 +138,7 @@ class DepositForm extends React.Component {
     console.log(`cUSDC contract "Approve" operation successful.`);
     console.log(`Supplying cUSDC to the Irs Agent...`, '\n');
 
-    await irsAgentContract.methods.deposit(adj_quantity).send({'from':accounts[0], 'gaslimit' : ,''});
+    await irsAgentContract.methods.deposit(adj_quantity).send({'from':accounts[0]});
     
     console.log(`cUSDC deposit operation successful.`, '\n')
     
