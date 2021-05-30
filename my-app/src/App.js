@@ -121,27 +121,37 @@ class DepositForm extends React.Component {
     //this is where we ask smart contracts
     //deposit will be a mint
     //the contract will ask for approval first
-    //find out what the exchange rate is
-    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()
-    let adj_quantity = new BigNumber(this.state.value*Math.pow(10,18))/exchangeRateCurrent;
-    console.log('current exchange rate is ' + exchangeRateCurrent);
-    console.log('adjust quantity is ' + adj_quantity);
+    //having trouble keeping track of when the numbers are scaled.
+    //going to start calling them big if they are scaled as in blockchain
+    const exchangeRateBig = await cUsdcContract.methods.exchangeRateCurrent().call();
+    const exchangeRate = new BigNumber(exchangeRateBig/1e16);
+    const USDCquantity = this.state.value;
+    const USDCquantityBig = new BigNumber(USDCquantity*1e18);
+    const cUSDCquantity = new BigNumber(USDCquantity/exchangeRate);
+    const cUSDCquantityBig = new BigNumber(cUSDCquantity*1e18);
+    console.log('current exchange rate is ' + exchangeRate);
+    console.log('USDC amount is ' + USDCquantity);
+    console.log('cUSDC amount is ' + cUSDCquantity);
+    console.log('the block chain gets USDC amount of ' + USDCquantityBig);
+    console.log('and cUSDC amount of ' + cUSDCquantityBig);
+
     const accounts = await web3.eth.getAccounts();
     myWalletAddress = accounts[0];
-    const adj_allowance = await usdcContract.methods.allowance(accounts[0], cUsdcAddress).call();
-    console.log('allowance :' + adj_allowance);
-    console.log('myWalletAddress : ' + myWalletAddress)
 
     // we are depositing to the irs contract. Tell the contract to allow cUSDC to be taken by the irsAgent contract
-    await cUsdcContract.methods.approve(irsAgentAddress, adj_quantity).send({'from': accounts[0]});
+    await cUsdcContract.methods.approve(irsAgentAddress, cUSDCquantityBig).send({'from': myWalletAddress});
 
     console.log(`cUSDC contract "Approve" operation successful.`);
     console.log(`Supplying cUSDC to the Irs Agent...`, '\n');
 
-    await irsAgentContract.methods.deposit(adj_quantity).send({'from':accounts[0]});
+    const balance = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
+    console.log('balance in irs agent contract is ' + balance);
+
+    await irsAgentContract.methods.deposit(cUSDCquantityBig).send({'from':myWalletAddress});
     
     console.log(`cUSDC deposit operation successful.`, '\n')
-    
+    const balanceNew = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
+    console.log('balance in irs agent contract is now ' + balanceNew);
     //alert('You want to deposit ' + this.state.value + ' USDC');
     
     event.preventDefault();
