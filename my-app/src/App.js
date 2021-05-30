@@ -48,29 +48,30 @@ const styles = {
 };
 
 var myWalletAddress = 0;
-
-const fromMyWallet = {
-  from: myWalletAddress,
-  gasLimit: web3.utils.toHex(500000),
-  gasPrice: web3.utils.toHex(20000000000) // use ethgasstation.info (mainnet only)
-};
-
-
 class Ticker extends Component{
 
   componentDidMount(){
     this.loadBlockchainData()
   }
+  //load current blockchain data - what is the current exchange rate?
+  //what is the cToken future price exchange rate?
+  //what is the balance
   async loadBlockchainData () {
-    const accounts = await web3.eth.getAccounts()
-    this.setState({account: accounts[0]})
+    const accounts = await web3.eth.getAccounts();
+    this.setState({account: accounts[0]});
     myWalletAddress = accounts[0];
-    console.log('acccount : ' +accounts[0])
-    this.setState({ cUsdcContract })
-    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()
-    this.setState({ exchangeRateCurrent})
-    console.log('irsAgent address : ' + irsAgentAddress)
+    
+    //what is the current cToken exchange rate?
+    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
+    this.setState({ exchangeRateCurrent});
 
+    //what is the current cToken future price?
+    const cTokenFuturePrice = exchangeRateCurrent * (1 + 0.0786 * dayCount) //await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
+    this.setState({ cTokenFuturePrice});
+
+    //what is the implied yield from this?
+    const fixedImpliedRate = (cTokenFuturePrice/exchangeRateCurrent-1)*(1/dayCount)*100;
+    this.setState({fixedImpliedRate});
   }
   constructor(props){
     super(props)
@@ -80,7 +81,9 @@ class Ticker extends Component{
   render(){
     return (
       <div>
-        <p>cUSDC exchange rate : {this.state.exchangeRateCurrent/10**16}</p>
+        <p>cUSDC exchange rate : {this.state.exchangeRateCurrent}</p>
+        <p>cToken future price : {this.state.cTokenFuturePrice}</p>
+        <p>Implied Fixed Rate is : {this.state.fixedImpliedRate}%</p>
       </div>
     );
   }
@@ -126,9 +129,9 @@ class DepositForm extends React.Component {
     const exchangeRateBig = await cUsdcContract.methods.exchangeRateCurrent().call();
     const exchangeRate = new BigNumber(exchangeRateBig/1e16);
     const USDCquantity = this.state.value;
-    const USDCquantityBig = new BigNumber(USDCquantity*1e18);
+    const USDCquantityBig = new BigNumber(USDCquantity*10**6);
     const cUSDCquantity = new BigNumber(USDCquantity/exchangeRate);
-    const cUSDCquantityBig = new BigNumber(cUSDCquantity*1e18);
+    const cUSDCquantityBig = new BigNumber(cUSDCquantity*10**8);
     console.log('current exchange rate is ' + exchangeRate);
     console.log('USDC amount is ' + USDCquantity);
     console.log('cUSDC amount is ' + cUSDCquantity);
@@ -147,7 +150,7 @@ class DepositForm extends React.Component {
     const balance = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
     console.log('cUSDC balance in irs agent contract is ' + balance);
     
-    await irsAgentContract.methods.deposit(USDCquantity, usdcAddress).send({'from':myWalletAddress});
+    await irsAgentContract.methods.deposit(USDCquantityBig, usdcAddress).send({'from':myWalletAddress});
     
     console.log(`cUSDC deposit operation successful.`, '\n')
     const balanceNew = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
@@ -165,27 +168,7 @@ class DepositForm extends React.Component {
           <button className="btn btn-outline-secondary" type="button" onClick={this.handleSubmit}>Deposit</button>
           </div>
       </div>
-     // <form onSubmit={this.handleSubmit}>
-     //       Fixed Rate Deposit Amount :
-     //     <input className = "form-control form-control-lg" type="number"  />
-     //   <input type="submit" value="Deposit" />
-      //</form>
     );
-  }
-}
-
-
-
-class FixedRate extends React.Component{
-  constructor(props){
-    super(props);
-  }
-  render(){
-    return (
-        <div>
-          Your Fixed Rate will be {fixedImpliedRate}%
-        </div>
-    )
   }
 }
 
@@ -194,12 +177,14 @@ function App() {
   return (
     <div className="container">
       
-        <EthButton/>
-        <Ticker />       
+        <br/>      
+        <EthButton/>   
+        <br />
+        <br />
         <br />
         <DepositForm/>
         <br />
-        <FixedRate />
+        <Ticker />
 
     </div>
   );
