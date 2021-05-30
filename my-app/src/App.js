@@ -139,19 +139,19 @@ class DepositForm extends React.Component {
     myWalletAddress = accounts[0];
 
     // we are depositing to the irs contract. Tell the contract to allow cUSDC to be taken by the irsAgent contract
-    await cUsdcContract.methods.approve(irsAgentAddress, cUSDCquantityBig).send({'from': myWalletAddress});
+    await usdcContract.methods.approve(irsAgentAddress, USDCquantityBig).send({'from': myWalletAddress});
 
-    console.log(`cUSDC contract "Approve" operation successful.`);
-    console.log(`Supplying cUSDC to the Irs Agent...`, '\n');
+    console.log(`USDC contract "Approve" operation successful.`);
+    console.log(`Supplying USDC to the Irs Agent...`, '\n');
 
     const balance = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
-    console.log('balance in irs agent contract is ' + balance);
-
-    await irsAgentContract.methods.deposit(cUSDCquantityBig).send({'from':myWalletAddress});
+    console.log('cUSDC balance in irs agent contract is ' + balance);
+    
+    await irsAgentContract.methods.deposit(USDCquantity, usdcAddress).send({'from':myWalletAddress});
     
     console.log(`cUSDC deposit operation successful.`, '\n')
     const balanceNew = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
-    console.log('balance in irs agent contract is now ' + balanceNew);
+    console.log('cUSDC balance in irs agent contract is now ' + balanceNew);
     //alert('You want to deposit ' + this.state.value + ' USDC');
     
     event.preventDefault();
