@@ -8,6 +8,7 @@ from typing import Optional, Tuple
 # These Uniswap deployment addresses are the same for mainnet, ropsten, rinkeby, goerli and kovan
 UNIVERSAL_UNISWAP_FACTORY_ADDRESS = web3.main.to_checksum_address('0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f')
 UNIVERSAL_UNISWAP_ROUTER_ADDRESS = web3.main.to_checksum_address('0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D')
+IRS_AGENT_CONTRACT_ADDRESS_FILENAME = 'deployed_irs_agent.json'
 
 def D(x: int, decimals: int = 0):
     '''Convert integer to scaled decimal'''

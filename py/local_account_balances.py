@@ -21,6 +21,9 @@ print('# Ethereum')
 print(f'{"block_number":<24} {block_number:,d}')
 print(f'{"accounts":<24} {len(accounts)}')
 print()
+for token in (WETH, USDC, cUSDC):
+    print(f'{token.symbol:<24}{token.decimals:>3}    {token.contract.address}')
+print()
 print(f'{"#":<2}    {"Account":<42}    {"ETH":>24}    {"WETH":>24}    {"USDC":>24}    {"cUSDC":>24}')
 for i, account in enumerate(accounts):
     eth_balance = w3.eth.get_balance(account)
