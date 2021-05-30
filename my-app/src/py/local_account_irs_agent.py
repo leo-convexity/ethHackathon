@@ -77,14 +77,13 @@ except Exception as exc:
     usage()
 
 IRS_data = json.load(open(IRS_AGENT_CONTRACT_ADDRESS_FILENAME))[0]
-IRS_type = namedtuple('IRS', 'contract token')
+IRS_type = namedtuple('IRS', 'contract token ctoken')
 IRS_contract = w3.eth.contract(address=IRS_data['contract_address'], abi=IRS_data['abi'])
 IRS_token = IRS_contract.functions.token().call()
-IRS = IRS_type(contract=IRS_contract, token=IRS_token)
+IRS_ctoken = IRS_contract.functions.ctoken().call()
+IRS = IRS_type(contract=IRS_contract, token=IRS_token, ctoken=IRS_ctoken)
 
-if token is None:
-    token = tokens[IRS.token]
-assert IRS.token == token.contract.address, (IRS.token, token.contract.address)
+#assert token is not None
 
 block_number = w3.eth.block_number
 
@@ -100,11 +99,14 @@ cusdc_balance = cUSDC.balanceOf(account)
 #irs_balance = IRS.functions.balanceOf()
 print(f'{index:<2}    {account:<42}    {D(eth_balance, 18):>24.18f}    {weth_balance:>24.18f}    {usdc_balance:>24.6f}    {cusdc_balance:>24.8f}')
 print()
-print(f'IRS token      {tokens[IRS.token].symbol:>24}')
-print(f'IRS reserves   {D(IRS.contract.functions.reserves().call(), tokens[IRS.token].decimals):>24}')
+print(f'IRS token      {tokens[IRS.ctoken].symbol:>24}')
+print(f'IRS reserves   {D(IRS.contract.functions.reserves().call(), tokens[IRS.ctoken].decimals):>24}')
 print(f'IRS depositors {IRS.contract.functions.depositors().call():>24}')
-print(f'IRS balance    {D(IRS.contract.functions.balanceOf(account).call(), tokens[IRS.token].decimals):>24}')
+print(f'IRS balance    {D(IRS.contract.functions.balanceOf(account).call(), tokens[IRS.ctoken].decimals):>24}')
 print()
+
+if op == Operation.BALANCE:
+    exit()
 
 token_symbol = token.symbol
 token_decimals = token.decimals
@@ -134,9 +136,9 @@ if op == Operation.DEPOSIT:
             exit()
 
 if op == Operation.DEPOSIT:
-    function = IRS.contract.functions.deposit(adj_quantity)
+    function = IRS.contract.functions.deposit(adj_quantity, token.contract.address)
 elif op == Operation.WITHDRAW:
-    function = IRS.contract.functions.withdraw(adj_quantity)
+    function = IRS.contract.functions.withdraw(adj_quantity, token.contract.address)
 elif op == Operation.BALANCE:
     exit()
 else:

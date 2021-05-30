@@ -41,7 +41,7 @@ print(f'{"block_number":<24} {block_number:,d}')
 print()
 
 irs_agent = w3.eth.contract(abi=abi, bytecode=bc)
-function = irs_agent.constructor(cUSDC.contract.address)
+function = irs_agent.constructor(cUSDC.contract.address, USDC.contract.address, block_number + 1000)
 
 print('proceed (y/n) ?')
 reply = input()
