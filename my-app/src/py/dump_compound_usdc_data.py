@@ -35,7 +35,7 @@ def D(x: int, decimals: int = 0):
     y /= 10**decimals
     return y
 
-w3 = web3.Web3(provider=web3.Web3.HTTPProvider('https://eth-mainnet.alchemyapi.io/v2/yAbFcy0SwtMi5lh2b9W-T_E6ZW-zEqIG'))
+w3 = web3.Web3(provider=web3.Web3.HTTPProvider('http://127.0.0.1:8545'))
 assert w3.isConnected(), 'not connected'
 assert not w3.eth.syncing, f'not synced: {w3.eth.syncing}'
 
