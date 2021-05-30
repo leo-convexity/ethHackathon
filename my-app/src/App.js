@@ -5,8 +5,6 @@ import { render } from 'react-dom';
 //copy pasted the config file from api-guide-example 
 const config = require('./config_mainnet.json');
 const Web3 = require('web3' || "http://127.0.0.1:8545");
-//added big number
-const bigNumber = require('bigNumber.js');
 
 //changed to givenProvider to see if we can work with MetaMask
 const web3 = new Web3(Web3.givenProvider);
@@ -41,20 +39,7 @@ const styles = {
 };
 
 //approveToken function
-function approveToken(tokenInstance, receiver, amount) {
-  tokenInstance.methods.approve(receiver, amount).send({ from: fromAddress }, async function(error, txHash) {
-      if (error) {
-          console.log("ERC20 could not be approved", error);
-          return;
-      }
-      console.log("ERC20 token approved to " + receiver);
-      const status = await waitTransaction(txHash);
-      if (!status) {
-          console.log("Approval transaction failed.");
-          return;
-      }
-  })
-}
+
 class Ticker extends Component{
 
   componentDidMount(){
@@ -119,12 +104,13 @@ class DepositForm extends React.Component {
     //this is where we ask smart contracts
     //deposit will be a mint
     //the contract will ask for approval first
-    const adj_quantity = this.state.value*1e18;
+    const adj_quantity = (this.state.value);
     const accounts = await web3.eth.getAccounts();
     const adj_allowance = await usdcContract.methods.allowance(accounts[0], cUsdcAddress).call();
     console.log('allowance :' + adj_allowance);
     if(adj_allowance < adj_quantity){
-      const transaction_hash = usdcContract.methods.approve(cusdcAddress, adj_quantity).send({'from': account})
+      const transaction_hash = await usdcContract.methods.approve(cUsdcAddress, adj_quantity).send({'from': accounts[0]})
+      console.log('tx hash : ' + transaction_hash);
     }
     //const mintResult = await cUsdcContract.methods.mint(this.state.value*10**18).send({from: accounts[0], value: 0});
     //console.log('result ' + mintResult);
