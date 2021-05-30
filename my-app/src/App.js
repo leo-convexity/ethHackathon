@@ -37,14 +37,10 @@ var msPerYear = 24 * 60 * 60 * 1000 *365; // Number of milliseconds per year
 var dayCount = (expiryDate.getTime() - today.getTime()) / msPerYear; //returns the daycount in terms of fraction of year left in milliseconds
 console.log('daycount = ' + dayCount);
 //creating variables that will later reference the blockchain - will need to make this so it somehow updates if something changes 
-var exchangeRateCurrent = 0.02222;
-var cTokenFuturePrice = 0.022645;
-var fixedImpliedRate = (cTokenFuturePrice/exchangeRateCurrent-1)*(1/dayCount)*100;
-console.log('exchangeRateCurrent = ' + exchangeRateCurrent);
 
 const styles = {
   height: 50,
-  backgroundColor: 'green'
+  backgroundColor: '#1dc872'
 };
 
 var myWalletAddress = 0;
@@ -72,6 +68,23 @@ class Ticker extends Component{
     //what is the implied yield from this?
     const fixedImpliedRate = (cTokenFuturePrice/exchangeRateCurrent-1)*(1/dayCount)*100;
     this.setState({fixedImpliedRate});
+
+    //what is your current balance?
+    const cUsdcBalance = await irsAgentContract.methods.balanceOf(myWalletAddress).call()/1e8;
+    this.setState({cUsdcBalance});
+
+    //what is your balance in usdc terms?
+    const usdcBalance = cUsdcBalance*exchangeRateCurrent;
+    this.setState({usdcBalance})
+
+    //what is your balance at expiry?
+    const usdcBalanceAtExpiry = cUsdcBalance*cTokenFuturePrice;
+    this.setState({usdcBalanceAtExpiry});
+
+    //how much interest have you locked in?
+    const usdcInterestLocked = usdcBalanceAtExpiry - usdcBalance;
+    this.setState({usdcInterestLocked});
+
   }
   constructor(props){
     super(props)
@@ -84,6 +97,9 @@ class Ticker extends Component{
         <p>cUSDC exchange rate : {this.state.exchangeRateCurrent}</p>
         <p>cToken future price : {this.state.cTokenFuturePrice}</p>
         <p>Implied Fixed Rate is : {this.state.fixedImpliedRate}%</p>
+        <p>Your current USDC balance is : {this.state.usdcBalance} </p>
+        <p>At expiry you will have : {this.state.usdcBalanceAtExpiry} </p>
+        <p>You have locked in : {this.state.usdcInterestLocked} USDC</p>
       </div>
     );
   }
