@@ -1,10 +1,13 @@
 import style from './App.css';
 import React, { Component } from 'react';
 import { render } from 'react-dom';
+import BigNumber from 'bignumber.js';
+
+const bigNumber = require('bignumber.js');
 
 //copy pasted the config file from api-guide-example 
 const config = require('./config_mainnet.json');
-const config1 = require('./compound-config/networks/mainnet-abi.json');
+const irsConfig = require('./py/deployed_irs_agent.json'); //gets the deployed_irs_agent.json file
 const Web3 = require('web3' || "http://127.0.0.1:8545");
 
 //changed to givenProvider to see if we can work with MetaMask
@@ -18,6 +21,11 @@ const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
 const usdcAddress = config.usdcAddress;
 const usdcAbi = config.usdcAbi;
 const usdcContract = new web3.eth.Contract(usdcAbi, usdcAddress);
+
+//build the deployed_irs_agent contract from address and ABI
+const irsAgentAddress = irsConfig[0].contract_address;
+const irsAgentAbi = irsConfig[0].abi;
+const irsAgentContract = new web3.eth.Contract(irsAgentAbi, irsAgentAddress);
 
 const ethereum = window.ethereum;
 
@@ -39,7 +47,14 @@ const styles = {
   backgroundColor: 'green'
 };
 
-//approveToken function
+var myWalletAddress = 0;
+
+const fromMyWallet = {
+  from: myWalletAddress,
+  gasLimit: web3.utils.toHex(500000),
+  gasPrice: web3.utils.toHex(20000000000) // use ethgasstation.info (mainnet only)
+};
+
 
 class Ticker extends Component{
 
@@ -49,13 +64,14 @@ class Ticker extends Component{
   async loadBlockchainData () {
     const accounts = await web3.eth.getAccounts()
     this.setState({account: accounts[0]})
+    myWalletAddress = accounts[0];
     console.log('acccount : ' +accounts[0])
     this.setState({ cUsdcContract })
     const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()
     this.setState({ exchangeRateCurrent})
+    console.log('irsAgent address : ' + irsAgentAddress)
 
   }
-
   constructor(props){
     super(props)
     this.state = { account: ''}
@@ -105,19 +121,29 @@ class DepositForm extends React.Component {
     //this is where we ask smart contracts
     //deposit will be a mint
     //the contract will ask for approval first
-    const adj_quantity = (this.state.value);
+    //find out what the exchange rate is
+    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()
+    let adj_quantity = new BigNumber(this.state.value*Math.pow(10,18))/exchangeRateCurrent;
+    console.log('current exchange rate is ' + exchangeRateCurrent);
+    console.log('adjust quantity is ' + adj_quantity);
     const accounts = await web3.eth.getAccounts();
+    myWalletAddress = accounts[0];
     const adj_allowance = await usdcContract.methods.allowance(accounts[0], cUsdcAddress).call();
     console.log('allowance :' + adj_allowance);
-    if(adj_allowance < adj_quantity){
-      const transaction_hash = await usdcContract.methods.approve(cUsdcAddress, adj_quantity).send({'from': accounts[0]})
-      console.log('tx hash : ' + transaction_hash);
-    }
-    //const mintResult = await cUsdcContract.methods.mint(this.state.value*10**18).send({from: accounts[0], value: 0});
-    //console.log('result ' + mintResult);
+    console.log('myWalletAddress : ' + myWalletAddress)
+
+    // we are depositing to the irs contract. Tell the contract to allow cUSDC to be taken by the irsAgent contract
+    await cUsdcContract.methods.approve(irsAgentAddress, adj_quantity).send({'from': accounts[0]});
+
+    console.log(`cUSDC contract "Approve" operation successful.`);
+    console.log(`Supplying cUSDC to the Irs Agent...`, '\n');
+
+    await irsAgentContract.methods.deposit(adj_quantity).send({'from':accounts[0], 'gaslimit' : ,''});
     
+    console.log(`cUSDC deposit operation successful.`, '\n')
     
     //alert('You want to deposit ' + this.state.value + ' USDC');
+    
     event.preventDefault();
   }
 
