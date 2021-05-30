@@ -67,9 +67,9 @@ totalReserves = f('totalReserves', 6)
 totalSupply = f('totalSupply', 8)
 borrowRatePerBlock = f('borrowRatePerBlock', 18)
 supplyRatePerBlock = f('supplyRatePerBlock', 18)
-assert exchangeRateCurrent == (
-        (getCash + totalBorrows - totalReserves) / totalSupply
-    ).quantize(decimal.Decimal((0, (1,), -16)), rounding=decimal.ROUND_DOWN)
+#assert exchangeRateCurrent == (
+#        (getCash + totalBorrows - totalReserves) / totalSupply
+#    ).quantize(decimal.Decimal((0, (1,), -16)), rounding=decimal.ROUND_DOWN)
 print('# cUSDC')
 print(f'{"exchangeRateCurrent":<24} {exchangeRateCurrent:>24,.16f}')
 print(f'{"getCash":<24} {getCash:>24,.6f}')
