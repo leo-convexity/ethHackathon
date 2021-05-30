@@ -114,12 +114,15 @@ class EthButton extends React.Component {
   }
   render() {
     return (
+      <div>
        <button style = {styles} onClick={
         () => ethereum.request({ method: 'eth_requestAccounts' }).then(
                 result => this.setState({value: result})
       )}>
       {this.state.value}
       </button>
+
+      </div>
     );
   }
 }
