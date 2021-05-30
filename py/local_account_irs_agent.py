@@ -19,7 +19,7 @@ class Operation(enum.Enum):
     BALANCE = 3
 
 def usage():
-    print(f'usage: {sys.argv[0]} [account] [deposit|withdraw] [quantity] [token]')
+    print(f'usage: {sys.argv[0]} [account] [deposit|withdraw|balance] [quantity] [token]')
     exit(1)
 
 try:
