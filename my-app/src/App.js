@@ -71,20 +71,20 @@ class Ticker extends Component{
     this.setState({fixedImpliedRate});
 
     //what is your current balance?
-    const cUsdcBalance = await irsAgentContract.methods.balanceOf(myWalletAddress).call()/1e8;
-    this.setState({cUsdcBalance});
+    //const cUsdcBalance = await irsAgentContract.methods.balanceOf(myWalletAddress).call()/1e8;
+    //this.setState({cUsdcBalance});
 
     //what is your balance in usdc terms?
-    const usdcBalance = cUsdcBalance*exchangeRateCurrent;
-    this.setState({usdcBalance})
+    //const usdcBalance = cUsdcBalance*exchangeRateCurrent;
+    //this.setState({usdcBalance})
 
     //what is your balance at expiry?
-    const usdcBalanceAtExpiry = cUsdcBalance*cTokenFuturePrice;
-    this.setState({usdcBalanceAtExpiry});
+    //const usdcBalanceAtExpiry = cUsdcBalance*cTokenFuturePrice;
+    //this.setState({usdcBalanceAtExpiry});
 
     //how much interest have you locked in?
-    const usdcInterestLocked = usdcBalanceAtExpiry - usdcBalance;
-    this.setState({usdcInterestLocked});
+    //const usdcInterestLocked = usdcBalanceAtExpiry - usdcBalance;
+    //this.setState({usdcInterestLocked});
 
   }
   constructor(props){
