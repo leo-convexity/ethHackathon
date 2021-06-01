@@ -27,13 +27,13 @@ const irsAgentAddress = irsConfig[0].contract_address;
 const irsAgentAbi = irsConfig[0].abi;
 const irsAgentContract = new web3.eth.Contract(irsAgentAbi, irsAgentAddress);
 
-//calculating fixed rate deposits
-//expiryDate should come from the smartContract that defines the cTokenFuture
-const expiryDate = new Date('June 25 2021');
+const overRideRate = 0.0834
+const expiryDateObject = new Date('June 2 2021');
 const today = new Date();
 const msPerYear = 24 * 60 * 60 * 1000 *365; // Number of milliseconds per year
-const dayCount = (expiryDate.getTime() - today.getTime()) / msPerYear; //returns the daycount in terms of fraction of year left in milliseconds
-//creating variables that will later reference the blockchain - will need to make this so it somehow updates if something changes 
+const dayCount = (expiryDateObject.getTime() - today.getTime()) / msPerYear; //returns the daycount in terms of fraction of year left in milliseconds
+    
+
 
 var myWalletAddress = 0;
 class Ticker extends Component{
@@ -48,15 +48,22 @@ class Ticker extends Component{
     const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
     this.setState({ exchangeRateCurrent});
 
+    //date should come from the IRS Agent smart contract, but using a hardcode for now
+    
+    const expiryDate = expiryDateObject.toString()
+    this.setState({expiryDate});
+
+    //creating variables that will later reference the blockchain - will need to make this so it somehow updates if something changes 
+
     //what is the current cToken future price?
-    const cTokenFuturePrice = exchangeRateCurrent * (1 + 0.0786 * dayCount) //await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
+    const cTokenFuturePriceRaw = exchangeRateCurrent * (1 + overRideRate * dayCount) //await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
+    const cTokenFuturePrice = cTokenFuturePriceRaw.toFixed(16)
     this.setState({ cTokenFuturePrice});
 
     //what is the implied yield from this?
     const fixedImpliedRate = (cTokenFuturePrice/exchangeRateCurrent-1)*(1/dayCount)*100;
     var displayImpliedRate = fixedImpliedRate.toFixed(3);
-    this.setState({displayImpliedRate});
-
+    this.setState({displayImpliedRate});    
   }
   constructor(props){
     super(props)
@@ -69,6 +76,7 @@ class Ticker extends Component{
         <h4>Implied Fixed Rate is : {this.state.displayImpliedRate}%</h4>
         <p>cUSDC exchange rate : {this.state.exchangeRateCurrent}</p>
         <p>cToken future price : {this.state.cTokenFuturePrice}</p>
+        <p>Expiry Date : {this.state.expiryDate}</p>
       </div>
     );
   }
@@ -77,7 +85,7 @@ class Ticker extends Component{
 class BalanceComponent extends Component{
 
   componentDidMount(){
-    this.checkAccount()
+      this.checkAccount();
   }
 
   //checks if metamask is connected
@@ -90,21 +98,27 @@ class BalanceComponent extends Component{
     console.log('balance compoment checking account : ' +myWalletAddress);
 
     //what is your current balance?
-    const cUsdcBalance = await irsAgentContract.methods.balanceOf(myWalletAddress).call()/1e8;
+    const cUsdcBalanceRaw = await irsAgentContract.methods.balanceOf(myWalletAddress).call()/1e8;
+    const cUsdcBalance = cUsdcBalanceRaw.toFixed(4)
     this.setState({cUsdcBalance});
     console.log('cUsdcBalance is ' + cUsdcBalance);
 
     //what is your balance in usdc terms?
-    //const usdcBalance = cUsdcBalance*exchangeRateCurrent;
-    //this.setState({usdcBalance})
+    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
+    const usdcBalanceRaw = cUsdcBalanceRaw*exchangeRateCurrent;
+    const usdcBalance = usdcBalanceRaw.toFixed(6)
+    this.setState({usdcBalance})
 
     //what is your balance at expiry?
-    //const usdcBalanceAtExpiry = cUsdcBalance*cTokenFuturePrice;
-    //this.setState({usdcBalanceAtExpiry});
+    const cTokenFuturePrice = exchangeRateCurrent * (1 + overRideRate * dayCount) //await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
+    const usdcBalanceAtExpiryRaw = cUsdcBalanceRaw*cTokenFuturePrice;
+    const usdcBalanceAtExpiry = usdcBalanceAtExpiryRaw.toFixed(6)
+    this.setState({usdcBalanceAtExpiry});
 
     //how much interest have you locked in?
-    //const usdcInterestLocked = usdcBalanceAtExpiry - usdcBalance;
-    //this.setState({usdcInterestLocked});
+    const usdcInterestLockedRaw = usdcBalanceAtExpiryRaw - usdcBalanceRaw;
+    const usdcInterestLocked = usdcInterestLockedRaw.toFixed(6)
+    this.setState({usdcInterestLocked});
 
   }
   constructor(props){
@@ -116,13 +130,13 @@ class BalanceComponent extends Component{
     return (
       <div>
         <p>Your current cUSDC balance is : {this.state.cUsdcBalance} </p>
+        <p>Equivalent USDC balance is : {this.state.usdcBalance}</p>
         <p>At expiry you will have : {this.state.usdcBalanceAtExpiry} </p>
         <p>You have locked in : {this.state.usdcInterestLocked} USDC</p>
       </div>
     );
   }
 }
-
 
 //add button that connects to metamask
 class EthButton extends React.Component {
@@ -201,7 +215,7 @@ class DepositForm extends React.Component {
     const balanceNew = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
     console.log('cUSDC balance in irs agent contract is now ' + balanceNew);
     //alert('You want to deposit ' + this.state.value + ' USDC');
-    
+
     event.preventDefault();
   }
 
@@ -217,6 +231,7 @@ class DepositForm extends React.Component {
   }
 }
 
+//
 
 function App() {
   
