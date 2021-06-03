@@ -5,7 +5,7 @@ import BigNumber from 'bignumber.js';
 
 //copy pasted the config file from api-guide-example 
 const config = require('./config_mainnet.json');
-const irsConfig = require('./py/deployed_irs_agent.json'); //gets the deployed_irs_agent.json file
+const irsConfig = require('./deployed_irs_agent.json'); //gets the deployed_irs_agent.json file
 const Web3 = require('web3' || "http://127.0.0.1:8545");
 
 //changed to givenProvider to see if we can work with MetaMask
@@ -35,7 +35,7 @@ const dayCount = (expiryDateObject.getTime() - today.getTime()) / msPerYear; //r
     
 
 
-var myWalletAddress = 0;
+var myWalletAddress = null;
 class Ticker extends Component{
 
   componentDidMount(){
@@ -97,6 +97,9 @@ class BalanceComponent extends Component{
     myWalletAddress = accounts[0];
     console.log('balance compoment checking account : ' +myWalletAddress);
 
+    //Return here if myWalletAddress is undefined, null or an empty string
+    if (!myWalletAddress) return;
+
     //what is your current balance?
     const cUsdcBalanceRaw = await irsAgentContract.methods.balanceOf(myWalletAddress).call()/1e8;
     const cUsdcBalance = cUsdcBalanceRaw.toFixed(4)
@@ -142,7 +145,7 @@ class BalanceComponent extends Component{
 class EthButton extends React.Component {
   constructor(props) {
     super(props);
-    if(myWalletAddress === 0) {
+    if(!myWalletAddress) {
       this.state = {value: "Connect MetaMask"};
     }
     else{

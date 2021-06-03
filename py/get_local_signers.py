@@ -9,7 +9,7 @@ import web3
 from collections import namedtuple
 from common import D, new_web3, get_contract_definitions, get_token
 
-w3 = new_web3('http://127.0.0.1:8545')
+w3 = new_web3()
 
 contract_definitions = get_contract_definitions(w3, 'mainnet')
 USDC = get_token(w3, 'USDC', contract_definitions)

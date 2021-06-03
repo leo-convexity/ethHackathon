@@ -3,7 +3,13 @@ import json
 import decimal
 import web3
 from collections import namedtuple
-from typing import Optional, Tuple
+from pathlib import Path
+from typing import Any, Optional, NamedTuple, Tuple
+
+class CONFIG(NamedTuple):
+    WEB3_URL = 'http://127.0.0.1:8545'
+    EXT_PATH = Path('../ext')
+    SOL_PATH = Path('../sol')
 
 # These Uniswap deployment addresses are the same for mainnet, ropsten, rinkeby, goerli and kovan
 UNIVERSAL_UNISWAP_FACTORY_ADDRESS = web3.main.to_checksum_address('0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f')
@@ -16,31 +22,36 @@ def D(x: int, decimals: int = 0):
     y /= 10**decimals
     return y
 
-def new_web3(url: str) -> web3.Web3:
-    w3 = web3.Web3(provider=web3.Web3.HTTPProvider('http://127.0.0.1:8545'))
+def new_web3(url: str = CONFIG.WEB3_URL) -> web3.Web3:
+    w3 = web3.Web3(provider=web3.Web3.HTTPProvider(url))
     assert w3.isConnected(), 'not connected'
     assert not w3.eth.syncing, f'not synced: {w3.eth.syncing}'
     return w3
 
+def get_compound_meta_data(chain: str) -> Tuple[Any, Any]:
+    path = CONFIG.EXT_PATH / 'compound-config/networks'
+    cfgs = json.load(open(path / f'{chain}.json'))
+    abis = json.load(open(path / f'{chain}-abi.json'))
+    return cfgs, abis
+
 def get_contract_definitions(w3: web3.Web3, chain: str = 'mainnet'):
     assert chain in ('mainnet', 'ropsten', 'rinkeby', 'goerli', 'kovan'), f'unsupported chain: {chain}'
 
-    cfgs = json.load(open(f'../compound-config/networks/{chain}.json'))
-    abis = json.load(open(f'../compound-config/networks/{chain}-abi.json'))
-
+    # compound usdc
+    cfgs, abis = get_compound_meta_data(chain)
     contract_cUSDC = w3.eth.contract(address=cfgs['cTokens']['cUSDC']['address'], abi=abis['cUSDC'])
     contract_USDC = w3.eth.contract(address=cfgs['cTokens']['cUSDC']['underlying'], abi=abis['USDC'])
 
     # uniswap factory
-    abi = json.load(open('../uniswap-v2-core-1.0.1-abi/UniswapV2Factory.json'))['abi']
+    abi = json.load(open(CONFIG.EXT_PATH / 'uniswap-v2-core-1.0.1-abi/UniswapV2Factory.json'))['abi']
     contract_uniswap_v2_factory = w3.eth.contract(address=UNIVERSAL_UNISWAP_FACTORY_ADDRESS, abi=abi)
 
     # uniswap router
-    abi = json.load(open('../uniswap-v2-periphery@1.1.0-beta.0-abi/UniswapV2Router02.json'))['abi']
+    abi = json.load(open(CONFIG.EXT_PATH / 'uniswap-v2-periphery@1.1.0-beta.0-abi/UniswapV2Router02.json'))['abi']
     contract_uniswap_v2_router = w3.eth.contract(address=UNIVERSAL_UNISWAP_ROUTER_ADDRESS, abi=abi)
 
     # WETH (from uniswap router)
-    abi = json.load(open('../uniswap-v2-periphery@1.1.0-beta.0-abi/WETH9.json'))['abi']
+    abi = json.load(open(CONFIG.EXT_PATH / 'uniswap-v2-periphery@1.1.0-beta.0-abi/WETH9.json'))['abi']
     address = contract_uniswap_v2_router.functions.WETH().call()
     contract_WETH = w3.eth.contract(address=address, abi=abi)
 

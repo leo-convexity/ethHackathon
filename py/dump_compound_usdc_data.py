@@ -25,32 +25,13 @@ To use virtual environment later again (web3 and other modules will already be t
     # Activate python virtual environment (shell prompt should change)
     . ~/venv/bin/activate
 '''
-import json
-import decimal
-import web3 
+from common import D, get_contract_definitions, get_token, new_web3
 
-def D(x: int, decimals: int = 0):
-    '''Convert integer to scaled decimal'''
-    y = decimal.Decimal(x)
-    y /= 10**decimals
-    return y
+w3 = new_web3()
 
-w3 = web3.Web3(provider=web3.Web3.HTTPProvider('http://127.0.0.1:8545'))
-assert w3.isConnected(), 'not connected'
-assert not w3.eth.syncing, f'not synced: {w3.eth.syncing}'
-
-cfgs = json.load(open('../compound-config/networks/mainnet.json'))
-abis = json.load(open('../compound-config/networks/mainnet-abi.json'))
-
-contract_cUSDC = w3.eth.contract(address=cfgs['cTokens']['cUSDC']['address'], abi=abis['cUSDC'])
-contract_USDC = w3.eth.contract(address=cfgs['cTokens']['cUSDC']['underlying'], abi=abis['USDC'])
-
-# sanity checks
-assert contract_USDC.functions.symbol().call() == 'USDC'
-assert contract_USDC.functions.decimals().call() == 6
-assert cfgs['cTokens']['cUSDC']['decimals'] == 8
-assert contract_cUSDC.functions.symbol().call() == 'cUSDC'
-assert contract_cUSDC.functions.decimals().call() == 8
+contract_definitions = get_contract_definitions(w3, 'mainnet')
+USDC = get_token(w3, 'USDC', contract_definitions)
+cUSDC = get_token(w3, 'cUSDC', contract_definitions)
 
 blockNumber = w3.eth.blockNumber
 print()
@@ -58,7 +39,7 @@ print('# Ethereum')
 print(f'{"blockNumber":<24} {blockNumber:>24,d}')
 print()
 
-f = lambda x, y: D(getattr(contract_cUSDC.functions, x)().call(block_identifier=blockNumber), y)
+f = lambda x, y: D(getattr(cUSDC.contract.functions, x)().call(block_identifier=blockNumber), y)
 exchangeRateCurrent = f('exchangeRateCurrent', 16)
 getCash = f('getCash', 6)
 totalBorrows = f('totalBorrows', 6)
@@ -81,7 +62,7 @@ print(f'{"borrowRatePerBlock":<24} {borrowRatePerBlock:>24,.18f}')
 print(f'{"supplyRatePerBlock":<24} {supplyRatePerBlock:>24,.18f}')
 print()
 
-f = lambda x, y: D(getattr(contract_USDC.functions, x)().call(block_identifier=blockNumber), y)
+f = lambda x, y: D(getattr(USDC.contract.functions, x)().call(block_identifier=blockNumber), y)
 totalSupply = f('totalSupply', 6)
 print('# USDC')
 print(f'{"totalSupply":<24} {totalSupply:>24,.6f}')

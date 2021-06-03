@@ -1,3 +1,6 @@
 [submodule "compound-config"]
-	path = my-app/src/compound-config
+	path = ext/compound-config
+	url = https://github.com/compound-finance/compound-config
+[submodule "ext/compound-config"]
+	path = ext/compound-config
 	url = https://github.com/compound-finance/compound-config

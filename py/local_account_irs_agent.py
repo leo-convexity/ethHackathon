@@ -4,8 +4,6 @@ Iterates and print accounts on the Ethereum node.
 For a local node (forked or otherwise) there should be 20 accounts with 10,000 ETH each.
 '''
 import json
-import decimal
-import web3
 import time
 import sys
 import enum
@@ -27,7 +25,7 @@ try:
 except:
     usage()
 
-w3 = new_web3('http://127.0.0.1:8545')
+w3 = new_web3()
 
 contract_definitions = get_contract_definitions(w3, 'mainnet')
 USDC = get_token(w3, 'USDC', contract_definitions)
@@ -60,7 +58,7 @@ try:
             raise
         quantity = 0
     else:
-        quantity = decimal.Decimal(arg_qty)
+        quantity = D(arg_qty)
         assert quantity >= 0 and op == Operation.BALANCE or quantity > 0
 
     try:
