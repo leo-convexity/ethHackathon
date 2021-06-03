@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-if [[ "${1,,}" == '-y' ]]; then
+if [[ "$1" == -[yY] ]]; then
 	PROCEED=1
 	Y=('-y')
 else
