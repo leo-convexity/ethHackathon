@@ -7,8 +7,11 @@ import json
 import time
 import sys
 import enum
+import decimal
+import argparse
 from collections import namedtuple
 from pprint import pprint
+from web3.main import to_checksum_address, to_hex
 from common import D, IRS_AGENT_CONTRACT_ADDRESS_FILENAME, new_web3, get_contract_definitions, get_token, get_uniswap_router
 
 class Operation(enum.Enum):
@@ -16,14 +19,13 @@ class Operation(enum.Enum):
     WITHDRAW = 2
     BALANCE = 3
 
-def usage():
-    print(f'usage: {sys.argv[0]} [account] [deposit|withdraw|balance] [quantity] [token]')
-    exit(1)
-
-try:
-    arg_act = sys.argv[1]
-except:
-    usage()
+parser = argparse.ArgumentParser(description='Transfer ETH or tokens.')
+parser.add_argument('-yes', dest='yes', action='store_true', help='do not confirm and always proceed')
+parser.add_argument('account', metavar='ACCOUNT', nargs=None, type=str, help='local account index')
+parser.add_argument('operation', metavar='OPERATION', nargs='?', type=str, help="operation - must be 'deposit', 'withdraw' or 'balance'", default='balance')
+parser.add_argument('quantity', metavar='QUANTITY', nargs='?', type=decimal.Decimal, help='quantity of ETH or tokens', default=0)
+parser.add_argument('token', metavar='TOKEN', nargs='?', type=str, help='ETH or token to send')
+args = parser.parse_args()
 
 w3 = new_web3()
 
@@ -34,45 +36,32 @@ WETH = get_token(w3, 'WETH', contract_definitions)
 tokens = dict((token.contract.address, token) for token in (WETH, USDC, cUSDC))
 
 try:
-    index = int(arg_act)
-    account = w3.eth.accounts[index]
-
-    try:
-        arg_op = sys.argv[2]
-    except IndexError:
-        op = Operation.BALANCE
+    if args.account.startswith('0x') or len(args.account) >= 40:
+        index = -1
+        account = to_checksum_address(args.account)
     else:
-        if arg_op.lower() == 'deposit':
-            op = Operation.DEPOSIT
-        elif arg_op.lower() == 'withdraw':
-            op = Operation.WITHDRAW
-        elif arg_op.lower() == 'balance':
-            op = Operation.BALANCE
-        else:
-            raise ValueError(f'invalid operation: {arg_op}')
+        index = int(args.account)
+        account = w3.eth.accounts[index]
 
-    try:
-        arg_qty = sys.argv[3]
-    except IndexError:
-        if op != Operation.BALANCE:
-            raise
-        quantity = 0
+    op = Operation[args.operation.upper()]
+
+    if op != Operation.BALANCE:
+        quantity = D(args.quantity)
+        if not quantity:
+            raise ValueError('missing quantity')
+        if quantity < 0:
+            raise ValueError('negative quantity')
     else:
-        quantity = D(arg_qty)
-        assert quantity >= 0 and op == Operation.BALANCE or quantity > 0
+        quantity = D(0)
 
-    try:
-        arg_token = sys.argv[4]
-    except IndexError:
-        if op != Operation.BALANCE:
-            raise
+    if op != Operation.BALANCE:
+        token = {'usdc': USDC, 'cusdc': cUSDC, 'weth': WETH}[args.token.lower()]
+    else:
         token = None
-    else:
-        token = {'usdc': USDC, 'cusdc': cUSDC, 'weth': WETH}[arg_token.lower()]
+
 except Exception as exc:
-    print(exc)
-    raise
-    usage()
+    print(exc, file=sys.stderr)
+    exit(1)
 
 IRS_data = json.load(open(IRS_AGENT_CONTRACT_ADDRESS_FILENAME))[0]
 IRS_type = namedtuple('IRS', 'contract token ctoken')
@@ -80,8 +69,6 @@ IRS_contract = w3.eth.contract(address=IRS_data['contract_address'], abi=IRS_dat
 IRS_token = IRS_contract.functions.token().call()
 IRS_ctoken = IRS_contract.functions.ctoken().call()
 IRS = IRS_type(contract=IRS_contract, token=IRS_token, ctoken=IRS_ctoken)
-
-#assert token is not None
 
 block_number = w3.eth.block_number
 
@@ -120,11 +107,14 @@ transaction_template = {'from': account}
 if op == Operation.DEPOSIT:
     adj_allowance = token.contract.functions.allowance(account, IRS.contract.address).call()
     if adj_allowance < adj_quantity:
-        print(f'{token.symbol} token allowance for {account} is {adj_allowance} which is too low, increase (y/n) ?')
-        reply = input()
-        if reply.strip().lower() == 'y':
+        proceed = args.yes
+        if not proceed:
+            print(f'{token.symbol} token allowance for {account} is {adj_allowance} which is too low, increase (y/n) ?')
+            reply = input()
+            proceed = reply.strip().lower() == 'y'
+        if proceed:
             transaction_hash = token.contract.functions.approve(IRS.contract.address, adj_quantity).transact({'from': account})
-            print(f'transaction hash: {transaction_hash}')
+            print(f'transaction hash: {to_hex(transaction_hash)}')
             result = w3.eth.wait_for_transaction_receipt(transaction_hash, timeout=120, poll_latency=0.1)
             # This sort of makes the transaction receipt more readable
             adj_result = dict(result)
@@ -137,23 +127,26 @@ if op == Operation.DEPOSIT:
     function = IRS.contract.functions.deposit(adj_quantity, token.contract.address)
 elif op == Operation.WITHDRAW:
     function = IRS.contract.functions.withdraw(adj_quantity, token.contract.address)
-elif op == Operation.BALANCE:
-    exit()
 else:
-    assert False
+    raise RunTimeError(f'unexpected operation: {op}')
+
 result = function.call(transaction_template)
 print(f'transaction call result: {result}')
 
-print('proceed (y/n) ?')
-reply = input()
-if reply.strip().lower() == 'y':
+proceed = args.yes
 
+if not proceed:
+    print('proceed (y/n) ?')
+    reply = input()
+    proceed = reply.strip().lower() == 'y'
+
+if proceed:
     if token is None:
         transaction_hash = w3.eth.send_transaction(transaction_template)
     else:
         transaction_hash = function.transact(transaction_template)
 
-    print(f'transaction hash: {transaction_hash}')
+    print(f'transaction hash: {to_hex(transaction_hash)}')
     result = w3.eth.wait_for_transaction_receipt(transaction_hash, timeout=120, poll_latency=0.1)
 
     # This sort of makes the transaction receipt more readable

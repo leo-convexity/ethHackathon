@@ -11,6 +11,7 @@ import os
 import argparse
 from pathlib import Path
 from pprint import pprint
+from web3.main import to_hex
 from common import CONFIG, D, IRS_AGENT_CONTRACT_ADDRESS_FILENAME, new_web3, get_contract_definitions, get_token
 
 default_abi = CONFIG.SOL_PATH / 'contracts/artefact/0_IrsAgent.abi.json'
@@ -59,7 +60,7 @@ if proceed:
     tx_tmpl = {'from': w3.eth.accounts[10]}
     transaction_hash = function.transact(tx_tmpl)
 
-    print(f'transaction hash: {web3.eth.to_hex(transaction_hash)}')
+    print(f'transaction hash: {to_hex(transaction_hash)}')
     result = w3.eth.wait_for_transaction_receipt(transaction_hash, timeout=120, poll_latency=0.1)
 
     # This sort of makes the transaction receipt more readable

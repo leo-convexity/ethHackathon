@@ -5,21 +5,21 @@ For a local node (forked or otherwise) there should be 20 accounts with 10,000 E
 '''
 import json
 import decimal
-import web3
 import time
 import sys
+import argparse
 from collections import namedtuple
 from pprint import pprint
+from web3.main import to_hex
 from common import D, new_web3, get_contract_definitions, get_token, get_uniswap_router
 
-def usage():
-    print(f'usage: {sys.argv[0]} [account] [mint|redeem] [quantity] [token]')
-    exit(1)
-
-try:
-    arg_act, arg_op, arg_qty, arg_token = sys.argv[1:]
-except:
-    usage()
+parser = argparse.ArgumentParser(description='Mint or redeem from Compound.')
+parser.add_argument('-yes', dest='yes', action='store_true', help='do not confirm and always proceed')
+parser.add_argument('account', metavar='ACCOUNT', nargs=None, type=int, help='local account index')
+parser.add_argument('operation', metavar='OPERATION', nargs=None, type=str, help="operation - must be 'mint' or 'redeem'")
+parser.add_argument('quantity', metavar='QUANTITY', nargs=None, type=decimal.Decimal, help='quantity of ETH or tokens')
+parser.add_argument('token', metavar='TOKEN', nargs=None, type=str, help='ETH or token to send')
+args = parser.parse_args()
 
 w3 = new_web3()
 
@@ -30,21 +30,21 @@ WETH = get_token(w3, 'WETH', contract_definitions)
 UNISWAP = get_uniswap_router(w3, contract_definitions)
 
 try:
-    index = int(arg_act)
+    index = int(args.account)
     account = w3.eth.accounts[index]
-    quantity = decimal.Decimal(arg_qty)
+    quantity = decimal.Decimal(args.quantity)
     assert quantity > 0
 
-    if arg_op.lower() == 'mint':
+    if args.operation.lower() == 'mint':
         side = -1
-    elif arg_op.lower() == 'redeem':
+    elif args.operation.lower() == 'redeem':
         side = +1
     else:
-        raise ValueError(f'invalid operation: {arg_op}')
+        raise ValueError(f'invalid operation: {args.operation}')
 
-    token = {'usdc': USDC, 'cusdc': cUSDC, 'weth': WETH}[arg_token.lower()]
+    token = {'usdc': USDC, 'cusdc': cUSDC, 'weth': WETH}[args.token.lower()]
 except Exception as exc:
-    print(exc)
+    print(exc, file=sys.stderr)
     usage()
 
 block_number = w3.eth.block_number
@@ -88,11 +88,14 @@ transaction_template = {'from': account, 'value': value}
 if side < 0:
     adj_allowance = USDC.contract.functions.allowance(account, cUSDC.contract.address).call()
     if adj_allowance < adj_quantity:
-        print(f'{USDC.symbol} token allowance for {account} is {adj_allowance} which is too low, increase (y/n) ?')
-        reply = input()
-        if reply.strip().lower() == 'y':
+        proceed = args.yes
+        if not proceed:
+            print(f'{USDC.symbol} token allowance for {account} is {adj_allowance} which is too low, increase (y/n) ?')
+            reply = input()
+            proceed = reply.strip().lower() == 'y'
+        if proceed:
             transaction_hash = USDC.contract.functions.approve(cUSDC.contract.address, adj_quantity).transact({'from': account})
-            print(f'transaction hash: {transaction_hash}')
+            print(f'transaction hash: {to_hex(transaction_hash)}')
             result = w3.eth.wait_for_transaction_receipt(transaction_hash, timeout=120, poll_latency=0.1)
             # This sort of makes the transaction receipt more readable
             adj_result = dict(result)
@@ -105,11 +108,16 @@ if side < 0:
 result = function.call(transaction_template)
 print(f'transaction call result: {result}')
 
-print('proceed (y/n) ?')
-reply = input()
-if reply.strip().lower() == 'y':
+proceed = args.yes
+
+if not proceed:
+    print('proceed (y/n) ?')
+    reply = input()
+    proceed = reply.strip().lower() == 'y'
+
+if proceed:
     transaction_hash = function.transact(transaction_template)
-    print(f'transaction hash: {transaction_hash}')
+    print(f'transaction hash: {to_hex(transaction_hash)}')
     result = w3.eth.wait_for_transaction_receipt(transaction_hash, timeout=120, poll_latency=0.1)
 
     # This sort of makes the transaction receipt more readable
