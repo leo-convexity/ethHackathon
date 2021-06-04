@@ -3,22 +3,7 @@ pragma solidity ~0.8.4;
 
 import "OpenZeppelin/openzeppelin-contracts@4.1.0/contracts/access/Ownable.sol";
 import "OpenZeppelin/openzeppelin-contracts@4.1.0/contracts/token/ERC20/IERC20.sol";
-
-interface CErc20 is IERC20 {
-    function mint(uint256) external returns (uint256);
-    function exchangeRateCurrent() external returns (uint256);
-    function supplyRatePerBlock() external returns (uint256);
-    function redeem(uint) external returns (uint);
-    function redeemUnderlying(uint) external returns (uint);
-}
-
-interface CEth {
-    function mint() external payable;
-    function exchangeRateCurrent() external returns (uint256);
-    function supplyRatePerBlock() external returns (uint256);
-    function redeem(uint) external returns (uint);
-    function redeemUnderlying(uint) external returns (uint);
-}
+import "contracts/CompoundInterface.sol";
 
 error NoFallback();
 error NoReceive();
