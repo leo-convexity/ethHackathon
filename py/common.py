@@ -9,12 +9,13 @@ from typing import Any, Optional, NamedTuple, Tuple
 class CONFIG(NamedTuple):
     WEB3_URL = 'http://127.0.0.1:8545'
     EXT_PATH = Path('../ext')
-    SOL_PATH = Path('../sol')
+    IRS_PATH = Path('../irs-agent')#/build/contracts/IrsAgent.json')
 
 # These Uniswap deployment addresses are the same for mainnet, ropsten, rinkeby, goerli and kovan
 UNIVERSAL_UNISWAP_FACTORY_ADDRESS = web3.main.to_checksum_address('0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f')
 UNIVERSAL_UNISWAP_ROUTER_ADDRESS = web3.main.to_checksum_address('0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D')
-IRS_AGENT_CONTRACT_ADDRESS_FILENAME = 'deployed_irs_agent.json'
+IRS_AGENT_CONTRACT_ADDRESS_FILENAME = Path('deployment') / 'deployed_irs_agent.json'
+IRS_AGENT_CACHED_BUILD_FILENAME = Path('deployment') / 'IrsAgent.json'
 
 def D(x: int, decimals: int = 0):
     '''Convert integer to scaled decimal'''
@@ -64,12 +65,22 @@ def get_contract_definitions(w3: web3.Web3, chain: str = 'mainnet'):
     assert contract_WETH.functions.symbol().call() == 'WETH'
     assert contract_WETH.functions.decimals().call() == 18
 
+    try:
+        data = json.load(open(IRS_AGENT_CONTRACT_ADDRESS_FILENAME))[0]
+        abi = data['abi']
+#        abi = json.load(open(CONFIG.IRS_PATH / 'build/contracts/IrsAgent.json'))['abi']
+        address = data['contract_address']
+        contract_irs_agent = w3.eth.contract(address=address, abi=abi)
+    except Exception:
+        contract_irs_agent = None
+
     return {
         'USDC': contract_USDC,
         'cUSDC': contract_cUSDC,
         'WETH': contract_WETH,
         'UniswapV2Factory': contract_uniswap_v2_factory,
         'UniswapV2Router02': contract_uniswap_v2_router,
+        'IrsAgent': contract_irs_agent,
     }
 
 def get_token(w3: web3.Web3, token_name: str, contract_definitions: Optional[dict] = None) -> Tuple:
@@ -107,5 +118,20 @@ def get_uniswap_router(w3: web3.Web3, contract_definitions: Optional[dict] = Non
     contract = contract_type(
         contract=contract_definition,
         WETH=lambda: contract_definition.functions.WETH().call(),
+    )
+    return contract
+
+def get_irs_agent(w3: web3.Web3, contract_definitions: Optional[dict] = None) -> Tuple:
+    if contract_definitions is None:
+        contract_definitions = get_contract_definitions(w3)
+    name = 'IrsAgent'
+    contract_definition = contract_definitions[name]
+    contract_type = namedtuple(name, 'contract token ctoken')
+    contract_token = contract_definition.functions.token().call()
+    contract_ctoken = contract_definition.functions.ctoken().call()
+    contract = contract_type(
+        contract=contract_definition,
+        token=contract_token,
+        ctoken=contract_ctoken,
     )
     return contract

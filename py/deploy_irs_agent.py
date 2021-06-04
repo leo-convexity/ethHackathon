@@ -12,15 +12,13 @@ import argparse
 from pathlib import Path
 from pprint import pprint
 from web3.main import to_hex
-from common import CONFIG, D, IRS_AGENT_CONTRACT_ADDRESS_FILENAME, new_web3, get_contract_definitions, get_token
+from common import CONFIG, D, IRS_AGENT_CACHED_BUILD_FILENAME, IRS_AGENT_CONTRACT_ADDRESS_FILENAME, new_web3, get_contract_definitions, get_token
 
-default_abi = CONFIG.SOL_PATH / 'contracts/artefact/0_IrsAgent.abi.json'
-default_bc = CONFIG.SOL_PATH / 'contracts/artefact/0_IrsAgent.bytecode.json'
+BUILD_FILE = CONFIG.IRS_PATH / 'build/contracts/IrsAgent.json'
 
 parser = argparse.ArgumentParser(description='Deploy smart contract.')
 parser.add_argument('-yes', dest='yes', action='store_true', help='do not ask and always proceed')
-parser.add_argument('abi', metavar='ABI', nargs='?', type=Path, help='abi file', default=default_abi)
-parser.add_argument('bc', metavar='BYTECODE', nargs='?', type=Path, help='bytecode file', default=default_bc)
+parser.add_argument('build', metavar='BUILD', nargs='?', type=Path, help='build file', default=BUILD_FILE)
 args = parser.parse_args()
 
 w3 = new_web3()
@@ -30,18 +28,32 @@ USDC = get_token(w3, 'USDC', contract_definitions)
 cUSDC = get_token(w3, 'cUSDC', contract_definitions)
 
 try:
-    abi = json.load(open(args.abi))
-    bc = bytes.fromhex(json.load(open(args.bc))['object'])
-except Exception as exc:
-    print(exc)
-    parser.print_help()
+    with open(IRS_AGENT_CACHED_BUILD_FILENAME) as fd:
+        cached_build = json.load(fd)
+except FileNotFoundError:
+    cached_build = None
+
+try:
+    with open(args.build) as fd:
+        build = json.load(fd)
+except FileNotFoundError:
+    build = None
+
+active_build = build
+if active_build is None:
+    active_build = cached_build
+
+if active_build is None:
+    print('either build file or cached build file must exist', file=sys.stderr)
     exit(1)
+
+abi = active_build['abi']
+bc = active_build['bytecode']
 
 block_number = w3.eth.block_number
 
 print()
-print(f'#       ABI file: {args.abi}')
-print(f'# Byte Code file: {args.bc}')
+print(f'# Build file: {args.build if build is not None else IRS_AGENT_CACHED_BUILD_FILENAME}')
 print()
 print('# Ethereum')
 print(f'{"block_number":<24} {block_number:,d}')
@@ -80,8 +92,15 @@ if proceed:
         'abi': abi,
     })
 
-    os_fd, filename = tempfile.mkstemp(suffix='~', prefix=f'.{IRS_AGENT_CONTRACT_ADDRESS_FILENAME}.', text=True)
+    os_fd, filename = tempfile.mkstemp(suffix='~', prefix=f'.{IRS_AGENT_CONTRACT_ADDRESS_FILENAME.name}.', text=True)
     with os.fdopen(os_fd, 'w') as fd:
         json.dump(data, fd, indent=None, separators=(',', ':'), sort_keys=True)
 
     os.replace(filename, IRS_AGENT_CONTRACT_ADDRESS_FILENAME)
+
+    if active_build != cached_build:
+        active_build_str = json.dumps(active_build, indent=None, separators=(',', ':'), sort_keys=True)
+        cached_build_str = json.dumps(cached_build, indent=None, separators=(',', ':'), sort_keys=True)
+        if active_build_str != cached_build_str:
+            with open(IRS_AGENT_CACHED_BUILD_FILENAME, 'w') as fd:
+                fd.write(active_build_str)

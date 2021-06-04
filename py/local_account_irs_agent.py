@@ -12,7 +12,7 @@ import argparse
 from collections import namedtuple
 from pprint import pprint
 from web3.main import to_checksum_address, to_hex
-from common import D, IRS_AGENT_CONTRACT_ADDRESS_FILENAME, new_web3, get_contract_definitions, get_token, get_uniswap_router
+from common import D, IRS_AGENT_CONTRACT_ADDRESS_FILENAME, new_web3, get_contract_definitions, get_token, get_uniswap_router, get_irs_agent
 
 class Operation(enum.Enum):
     DEPOSIT = 1
@@ -33,6 +33,8 @@ contract_definitions = get_contract_definitions(w3, 'mainnet')
 USDC = get_token(w3, 'USDC', contract_definitions)
 cUSDC = get_token(w3, 'cUSDC', contract_definitions)
 WETH = get_token(w3, 'WETH', contract_definitions)
+IRS = get_irs_agent(w3, contract_definitions)
+
 tokens = dict((token.contract.address, token) for token in (WETH, USDC, cUSDC))
 
 try:
@@ -62,13 +64,6 @@ try:
 except Exception as exc:
     print(exc, file=sys.stderr)
     exit(1)
-
-IRS_data = json.load(open(IRS_AGENT_CONTRACT_ADDRESS_FILENAME))[0]
-IRS_type = namedtuple('IRS', 'contract token ctoken')
-IRS_contract = w3.eth.contract(address=IRS_data['contract_address'], abi=IRS_data['abi'])
-IRS_token = IRS_contract.functions.token().call()
-IRS_ctoken = IRS_contract.functions.ctoken().call()
-IRS = IRS_type(contract=IRS_contract, token=IRS_token, ctoken=IRS_ctoken)
 
 block_number = w3.eth.block_number
 
@@ -105,7 +100,7 @@ transaction_template = {'from': account}
 
 # Check token approval if selling tokens
 if op == Operation.DEPOSIT:
-    adj_allowance = token.contract.functions.allowance(account, IRS.contract.address).call()
+    adj_allowance = token.contract.functions.allowance(account, IRS.contract.address).call(transaction_template)
     if adj_allowance < adj_quantity:
         proceed = args.yes
         if not proceed:
@@ -113,7 +108,7 @@ if op == Operation.DEPOSIT:
             reply = input()
             proceed = reply.strip().lower() == 'y'
         if proceed:
-            transaction_hash = token.contract.functions.approve(IRS.contract.address, adj_quantity).transact({'from': account})
+            transaction_hash = token.contract.functions.approve(IRS.contract.address, adj_quantity).transact(transaction_template)
             print(f'transaction hash: {to_hex(transaction_hash)}')
             result = w3.eth.wait_for_transaction_receipt(transaction_hash, timeout=120, poll_latency=0.1)
             # This sort of makes the transaction receipt more readable

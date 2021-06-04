@@ -1,3 +1,2 @@
 __pycache__/
-deployed_irs_agent.json
-setup_script.sh
+deployment/

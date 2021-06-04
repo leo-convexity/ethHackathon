@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-pragma solidity >=0.8.0 <0.9.0;
+pragma solidity ~0.8.4;
 
-import "http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/Ownable.sol";
-import "http://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import "OpenZeppelin/openzeppelin-contracts@4.1.0/contracts/access/Ownable.sol";
+import "OpenZeppelin/openzeppelin-contracts@4.1.0/contracts/token/ERC20/IERC20.sol";
 
 interface CErc20 is IERC20 {
     function mint(uint256) external returns (uint256);
@@ -56,22 +56,28 @@ contract IrsAgent is Ownable {
     }
 
     function deposit(uint amount, address _token) external {
-        require(amount > 0);
+        require(amount > 0, "deposit:0");
         address msgSender = _msgSender();
         uint deposit_amount = amount;
-        uint rate = ctoken.exchangeRateCurrent();
 
         if (_token == address(token)) {
-            require(token.transferFrom(msgSender, address(this), amount));
+            require(token.transferFrom(msgSender, address(this), amount), "deposit:1");
             uint balance_before = ctoken.balanceOf(address(this));
-            require(ctoken.mint(amount) == 0);
+	    require(token.approve(address(ctoken), amount), "deposit:2");
+	    {
+	        uint rc = ctoken.mint(amount);
+		if (rc != 0) {
+		    bytes memory text = "deposit:3:\x00";
+		    text[10] = bytes1(64 + (uint8(rc) & 0x1f));
+		    revert(string(text));
+		}
+	    }
             uint balance_after = ctoken.balanceOf(address(this));
             uint minted = balance_after - balance_before;
-            require(minted > 0);
-            require(amount == minted * rate);
+            require(minted > 0, "deposit:4");
             amount = minted;
         } else if (_token == address(ctoken)) {
-            require(ctoken.transferFrom(msgSender, address(this), amount));
+            require(ctoken.transferFrom(msgSender, address(this), amount), "deposit:5");
         } else {
             revert BadToken();
         }
@@ -81,6 +87,8 @@ contract IrsAgent is Ownable {
             ++depositors;
         balances[msgSender] = old_balance + amount;
 
+        uint rate = ctoken.exchangeRateCurrent();
+
         emit Deposit(msgSender, _token, deposit_amount, amount, rate);
     }
 
@@ -88,7 +96,6 @@ contract IrsAgent is Ownable {
         require(amount > 0);
         address msgSender = _msgSender();
 
-        uint rate = ctoken.exchangeRateCurrent();
         uint ctoken_balance_before = ctoken.balanceOf(address(this));
         uint token_balance_before = token.balanceOf(address(this));
 
@@ -112,6 +119,8 @@ contract IrsAgent is Ownable {
             if (new_balance == 0)
                 --depositors;
         }
+
+        uint rate = ctoken.exchangeRateCurrent();
 
         emit Withdrawal(msgSender, _token, amount, ctoken_balance_decrease, rate);
     }
