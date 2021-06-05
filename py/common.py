@@ -87,7 +87,7 @@ def get_token(w3: web3.Web3, token_name: str, contract_definitions: Optional[dic
     if contract_definitions is None:
         contract_definitions = get_contract_definitions(w3)
     token_contract = contract_definitions[token_name]
-    token_type = namedtuple(token_name, 'contract symbol decimals balanceOf')
+    token_type = namedtuple(token_name, 'contract symbol decimals balanceOf toDecimal toInteger')
     token_symbol = token_contract.functions.symbol().call()
     token_decimals = token_contract.functions.decimals().call()
     token = token_type(
@@ -95,6 +95,8 @@ def get_token(w3: web3.Web3, token_name: str, contract_definitions: Optional[dic
         symbol=token_symbol,
         decimals=token_decimals,
         balanceOf=lambda address: D(token_contract.functions.balanceOf(address).call(), token_decimals),
+        toDecimal=lambda integer: D(integer, token_decimals),
+        toInteger=lambda amount: int(amount*10**token_decimals),
     )
     return token
 
