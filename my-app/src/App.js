@@ -2,6 +2,8 @@ import style from './App.css';
 import React, { Component } from 'react';
 import { render } from 'react-dom';
 import BigNumber from 'bignumber.js';
+import logo from './1.png';
+import constants from './components/constants.js';
 
 //copy pasted the config file from api-guide-example 
 const config = require('./config_mainnet.json');
@@ -27,11 +29,23 @@ const irsAgentAddress = irsConfig[0].contract_address;
 const irsAgentAbi = irsConfig[0].abi;
 const irsAgentContract = new web3.eth.Contract(irsAgentAbi, irsAgentAddress);
 
-const overRideRate = 0.0834
-const expiryDateObject = new Date('June 2 2021');
+const owner = "0xbcd4042de499d14e55001ccbb24a551f3b954096"; //owner of the Contract is also the market maker
+const expiryDateObject = new Date('June 5 2022');
 const today = new Date();
 const msPerYear = 24 * 60 * 60 * 1000 *365; // Number of milliseconds per year
 const dayCount = (expiryDateObject.getTime() - today.getTime()) / msPerYear; //returns the daycount in terms of fraction of year left in milliseconds
+const decimals = {usdc : 6, cusdc: 8, cusdcRate : 16};
+const scaler = {usdc : Math.pow(10, decimals.usdc), cusdc : Math.pow(10, decimals.cusdc), cusdcRate : Math.pow(10,decimals.cusdcRate) }
+const cTokenFuturePriceManual = 0.0238;
+
+//add this to the end of contract calls
+const hash = function(err, res){
+  if(err) {
+    console.log("An Error Occured", err);
+    return
+  }
+  console.log("hash of transaction: "+ res);
+}
     
 
 
@@ -45,7 +59,7 @@ class Ticker extends Component{
   //what is the cToken future price exchange rate?
   async loadBlockchainData () {    
     //what is the current cToken exchange rate?
-    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
+    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
     this.setState({ exchangeRateCurrent});
 
     //date should come from the IRS Agent smart contract, but using a hardcode for now
@@ -56,8 +70,8 @@ class Ticker extends Component{
     //creating variables that will later reference the blockchain - will need to make this so it somehow updates if something changes 
 
     //what is the current cToken future price?
-    const cTokenFuturePriceRaw = exchangeRateCurrent * (1 + overRideRate * dayCount) //await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
-    const cTokenFuturePrice = cTokenFuturePriceRaw.toFixed(16)
+    //will call the blockchain to find the current bid price. but for now use the manual price
+    const cTokenFuturePrice = await irsAgentContract.methods.bidPrice().call()/scaler.cusdcRate;
     this.setState({ cTokenFuturePrice});
 
     //what is the implied yield from this?
@@ -73,9 +87,9 @@ class Ticker extends Component{
   render(){
     return (
       <div>
-        <h4>Implied Fixed Rate is : {this.state.displayImpliedRate}%</h4>
+        <h4>Implied Fixed Rate (APY) : {this.state.displayImpliedRate}%</h4>
         <p>cUSDC exchange rate : {this.state.exchangeRateCurrent}</p>
-        <p>cToken future price : {this.state.cTokenFuturePrice}</p>
+        <p>cUSDC Future bid price : {this.state.cTokenFuturePrice}</p>
         <p>Expiry Date : {this.state.expiryDate}</p>
       </div>
     );
@@ -101,26 +115,26 @@ class BalanceComponent extends Component{
     if (!myWalletAddress) return;
 
     //what is your current balance?
-    const cUsdcBalanceRaw = await irsAgentContract.methods.balanceOf(myWalletAddress).call()/1e8;
-    const cUsdcBalance = cUsdcBalanceRaw.toFixed(4)
+    const cUsdcBalanceRaw = await irsAgentContract.methods.balanceOf(myWalletAddress).call()/scaler.cusdc;
+    const cUsdcBalance = cUsdcBalanceRaw.toFixed(2)
     this.setState({cUsdcBalance});
     console.log('cUsdcBalance is ' + cUsdcBalance);
 
     //what is your balance in usdc terms?
-    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
+    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
     const usdcBalanceRaw = cUsdcBalanceRaw*exchangeRateCurrent;
-    const usdcBalance = usdcBalanceRaw.toFixed(6)
+    const usdcBalance = usdcBalanceRaw.toFixed(4)
     this.setState({usdcBalance})
 
     //what is your balance at expiry?
-    const cTokenFuturePrice = exchangeRateCurrent * (1 + overRideRate * dayCount) //await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
+    const cTokenFuturePrice = cTokenFuturePriceManual;//exchangeRateCurrent * (1 + overRideRate * dayCount) //await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
     const usdcBalanceAtExpiryRaw = cUsdcBalanceRaw*cTokenFuturePrice;
-    const usdcBalanceAtExpiry = usdcBalanceAtExpiryRaw.toFixed(6)
+    const usdcBalanceAtExpiry = usdcBalanceAtExpiryRaw.toFixed(4)
     this.setState({usdcBalanceAtExpiry});
 
     //how much interest have you locked in?
     const usdcInterestLockedRaw = usdcBalanceAtExpiryRaw - usdcBalanceRaw;
-    const usdcInterestLocked = usdcInterestLockedRaw.toFixed(6)
+    const usdcInterestLocked = usdcInterestLockedRaw.toFixed(4)
     this.setState({usdcInterestLocked});
 
   }
@@ -156,7 +170,7 @@ class EthButton extends React.Component {
       <div className="container">
         <div className="row float-end">
           <div className="col-md-12">
-              <button className = "btn btn-primary float-right"onClick={
+              <button className = "btn btn-primary"onClick={
                   () => ethereum.request({ method: 'eth_requestAccounts' }).then(
                             result => this.setState({value: result})
                   )}>
@@ -189,11 +203,11 @@ class DepositForm extends React.Component {
     //having trouble keeping track of when the numbers are scaled.
     //going to start calling them big if they are scaled as in blockchain
     const exchangeRateBig = new BigNumber(await cUsdcContract.methods.exchangeRateCurrent().call());
-    const exchangeRate = new BigNumber(exchangeRateBig/1e16);
+    const exchangeRate = new BigNumber(exchangeRateBig/scaler.cusdcRate);
     const USDCquantity = this.state.value;
-    const USDCquantityBig = new BigNumber(USDCquantity*10**6);
+    const USDCquantityBig = new BigNumber(USDCquantity*scaler.usdc);
     const cUSDCquantity = new BigNumber(USDCquantity/exchangeRate);
-    const cUSDCquantityBig = new BigNumber(cUSDCquantity*10**8);
+    const cUSDCquantityBig = new BigNumber(cUSDCquantity*scaler.cusdc);
     console.log('current exchange rate is ' + exchangeRate);
     console.log('USDC amount is ' + USDCquantity);
     console.log('cUSDC amount is ' + cUSDCquantity);
@@ -204,7 +218,7 @@ class DepositForm extends React.Component {
     myWalletAddress = accounts[0];
 
     // we are depositing to the irs contract. Tell the contract to allow cUSDC to be taken by the irsAgent contract
-    await usdcContract.methods.approve(irsAgentAddress, USDCquantityBig).send({'from': myWalletAddress});
+    await usdcContract.methods.approve(irsAgentAddress, USDCquantityBig).send({'from': myWalletAddress}, hash);
 
     console.log(`USDC contract "Approve" operation successful.`);
     console.log(`Supplying USDC to the Irs Agent...`, '\n');
@@ -212,7 +226,7 @@ class DepositForm extends React.Component {
     const balance = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
     console.log('cUSDC balance in irs agent contract is ' + balance);
     
-    await irsAgentContract.methods.deposit(USDCquantityBig, usdcAddress).send({'from':myWalletAddress});
+    await irsAgentContract.methods.deposit(USDCquantityBig, usdcAddress).send({'from':myWalletAddress}, hash);
     
     console.log(`cUSDC deposit operation successful.`, '\n')
     const balanceNew = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
@@ -221,7 +235,6 @@ class DepositForm extends React.Component {
 
     event.preventDefault();
   }
-
   render() {
     return (
       <div className="input-group input-group-lg mx-auto">
@@ -234,7 +247,101 @@ class DepositForm extends React.Component {
   }
 }
 
-//
+//This is where we set the quote
+class SetQuoteForm extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { bidPrice: '' , bidSize: '', askPrice: '' , askSize: '' };
+    this.handleChange = this.handleChange.bind(this);
+    this.handleSubmit = this.handleSubmit.bind(this);
+  }
+
+  handleChange(event) {
+    this.setState({[event.target.name] : event.target.value});
+  }
+
+  async handleSubmit(event) {
+    //check if the account is the owner
+    const accounts = await web3.eth.getAccounts();
+    myWalletAddress = accounts[0]; 
+    const checkAddress = myWalletAddress.toString() //need to change the data to lowercase
+    
+    console.log("we got here")
+    //if the wallet address is not the owner, show this alert
+    if (checkAddress.toLowerCase() != owner){
+      window.alert("Must be the Owner to Set Quote");
+      return
+    }
+    const { bidPrice, bidSize, askPrice, askSize } = this.state;
+    console.log('bid price is :' + bidPrice);
+    console.log('bid size is :' + bidSize);
+    console.log('ask price is :' + askPrice);
+    console.log('ask size is :' + askSize);
+
+    const bidPriceBig = new BigNumber(bidPrice*scaler.cusdcRate);
+    const bidSizeBig = new BigNumber(bidSize*scaler.cusdc);
+    const askPriceBig = new BigNumber(askPrice*scaler.cusdcRate);
+    const askSizeBig = new BigNumber(askSize*scaler.cusdc);
+
+    //at the moment this is giving me an error
+    console.log('bid price : ' + bidPriceBig.toFixed(0) + 'bid size : ' +  bidSizeBig.toFixed(0));
+    await irsAgentContract.methods.setQuote(bidPriceBig.toFixed(0), bidSizeBig.toFixed(0), askPriceBig.toFixed(0), askSizeBig.toFixed(0)).send({'from' : myWalletAddress},hash);
+
+    const result = await irsAgentContract.methods.fullQuote().call();
+    console.log('This is the full quote :', '\n', 'bid price: ' + result[0], '\n', 'bid size: ' + result[1]);
+  }
+  render() {
+    return (
+      <form>
+        <div>
+          <label htmlFor='bidPrice'>Bid Price</label>
+          <input 
+            name='bidPrice'
+            type='number'
+            placeholder='Bid Price' 
+            value = {this.state.bidPrice}
+            onChange={this.handleChange}
+          />
+        </div>
+        <div>
+          <label htmlFor='bidSize'>Bid Size</label>
+          <input
+            name='bidSize'
+            type='number'
+            placeholder='Bid Size'
+            value={this.state.bidSize}
+            onChange={this.handleChange}
+          />
+        </div>
+        <div>
+          <label htmlFor='askPrice'>Ask Price</label>
+          <input
+            name='askPrice'
+            type='number'
+            placeholder='Ask Price'
+            value={this.state.askPrice}
+            onChange={this.handleChange}
+          />
+        </div>
+        <div>
+        <label htmlFor='askSize'>Ask Size</label>
+          <input
+            name='askSize'
+            type='number'
+            placeholder='Ask Size'
+            value={this.state.askSize}
+            onChange={this.handleChange}
+          />
+        </div>
+        <div>
+          <button className="btn btn-outline-secondary btn-lg" type="button" onClick={this.handleSubmit}>Enter Order</button>
+        </div>
+      </form>
+
+    );
+  }
+}
+
 
 function App() {
   
@@ -248,12 +355,15 @@ function App() {
           <div className = 'row'>
           <div className = 'col'></div>
           <div className = 'col-8'>
+            <img src = {logo} height = '60px' width ='auto'/>
             <h3 className ='text-center'>Fixed Rate Deposits on Compound</h3>
             <br />
             <DepositForm/>
             <br />
             <Ticker />
             <BalanceComponent />
+            <br/>
+            <SetQuoteForm />
           </div>
           <div className = 'col'></div>
           </div>
