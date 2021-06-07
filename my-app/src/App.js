@@ -3,7 +3,6 @@ import React, { Component } from 'react';
 import { render } from 'react-dom';
 import BigNumber from 'bignumber.js';
 import logo from './1.png';
-import constants from './components/constants.js';
 
 //copy pasted the config file from api-guide-example 
 const config = require('./config_mainnet.json');
@@ -72,7 +71,7 @@ class Ticker extends Component{
     //what is the current cToken future price?
     //will call the blockchain to find the current bid price. but for now use the manual price
     const cTokenFuturePrice = await irsAgentContract.methods.bidPrice().call()/scaler.cusdcRate;
-    this.setState({ cTokenFuturePrice});
+    this.setState({ cTokenFuturePrice });
 
     //what is the implied yield from this?
     const fixedImpliedRate = (cTokenFuturePrice/exchangeRateCurrent-1)*(1/dayCount)*100;
@@ -355,7 +354,7 @@ function App() {
           <div className = 'row'>
           <div className = 'col'></div>
           <div className = 'col-8'>
-            <img src = {logo} height = '60px' width ='auto'/>
+            <img src = {logo} height = '70px' width ='auto'/>
             <h3 className ='text-center'>Fixed Rate Deposits on Compound</h3>
             <br />
             <DepositForm/>
@@ -363,6 +362,7 @@ function App() {
             <Ticker />
             <BalanceComponent />
             <br/>
+            <h4>Order Entry</h4>
             <SetQuoteForm />
           </div>
           <div className = 'col'></div>
