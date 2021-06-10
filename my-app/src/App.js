@@ -1,5 +1,5 @@
 import style from './App.css';
-import React, { Component } from 'react';
+import React, { Component , useState } from 'react';
 import { render } from 'react-dom';
 import BigNumber from 'bignumber.js';
 import logo from './1.png';
@@ -32,7 +32,6 @@ const owner = "0xbcd4042de499d14e55001ccbb24a551f3b954096"; //owner of the Contr
 const expiryDateObject = new Date('June 5 2022');
 const today = new Date();
 const msPerYear = 24 * 60 * 60 * 1000 *365; // Number of milliseconds per year
-const dayCount = (expiryDateObject.getTime() - today.getTime()) / msPerYear; //returns the daycount in terms of fraction of year left in milliseconds
 const decimals = {usdc : 6, cusdc: 8, cusdcRate : 16};
 const scaler = {usdc : Math.pow(10, decimals.usdc), cusdc : Math.pow(10, decimals.cusdc), cusdcRate : Math.pow(10,decimals.cusdcRate) }
 const cTokenFuturePriceManual = 0.0238;
@@ -45,8 +44,42 @@ const hash = function(err, res){
   }
   console.log("hash of transaction: "+ res);
 }
-    
 
+//returns the current exchange rate from cUSDC contract
+async function xr () {
+  const xr = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
+  return xr
+}    
+
+//returns the expiry block from the irsAgent contract
+async function xblck () {
+  const xblck = await irsAgentContract.methods.blocksToExpiry().call();
+  return xblck;
+}    
+
+//returns the current block number
+async function cblck () {
+  const cblck = await web3.eth.getBlockNumber();
+  return cblck;
+}    
+
+//returns the future bid price scaled
+async function fp (){
+    const fp = await irsAgentContract.methods.bidPrice().call()/scaler.cusdcRate;
+    return fp;
+}
+
+//returns the future bid size scaled
+async function fs (){
+    const fs = await irsAgentContract.methods.bidSize().call()/scaler.cusdc;
+    return fs;
+}
+
+//returns the account position
+async function getEntries (x) {
+   const entries = await irsAgentContract.methods.entries(x).call();
+   return entries;
+}
 
 var myWalletAddress = null;
 class Ticker extends Component{
@@ -58,38 +91,57 @@ class Ticker extends Component{
   //what is the cToken future price exchange rate?
   async loadBlockchainData () {    
     //what is the current cToken exchange rate?
-    const exchangeRateCurrent = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
+    const exchangeRateCurrent = await xr();
     this.setState({ exchangeRateCurrent});
 
     //date should come from the IRS Agent smart contract, but using a hardcode for now
-    
-    const expiryDate = expiryDateObject.toString()
+    //how many blocks until expiry?
+    const blocksToExpiry = await xblck();
+    this.setState({blocksToExpiry});
+    const currentBlock = await cblck();
+    this.setState({currentBlock});
+
+    //time left in milliseconds until expiry assuming 13 seconds per block
+    const timeLeft = blocksToExpiry * 13 * 1000
+    var xpt = new Date(Date.now() + timeLeft);
+    console.log("expiry date is : " + xpt);
+
+    const expiryDate = xpt.toString();
     this.setState({expiryDate});
+    const dayCount = timeLeft/msPerYear;
 
     //creating variables that will later reference the blockchain - will need to make this so it somehow updates if something changes 
 
     //what is the current cToken future price?
-    //will call the blockchain to find the current bid price. but for now use the manual price
-    const cTokenFuturePrice = await irsAgentContract.methods.bidPrice().call()/scaler.cusdcRate;
+    //will call the blockchain to find the current bid price
+    const cTokenFuturePrice = await fp();
     this.setState({ cTokenFuturePrice });
+    const cTokenFutureSize = await fs();
+    this.setState({cTokenFutureSize})
 
-    //what is the implied yield from this?
-    const fixedImpliedRate = (cTokenFuturePrice/exchangeRateCurrent-1)*(1/dayCount)*100;
-    var displayImpliedRate = fixedImpliedRate.toFixed(3);
-    this.setState({displayImpliedRate});    
+    //what is the Indicated implied yield from this?
+    const indicRate = (cTokenFuturePrice/exchangeRateCurrent-1)*(1/dayCount)*100;
+    var displayIndicRate = indicRate.toFixed(3);
+    this.setState({displayIndicRate});    
   }
   constructor(props){
     super(props)
-    this.state = { account: ''}
+    this.state = { displayIndicRate: this.props.displayIndicRate }
   }
 
   render(){
     return (
       <div>
-        <h4>Implied Fixed Rate (APY) : {this.state.displayImpliedRate}%</h4>
+        <h4>Implied Fixed Rate (APY) : {this.state.displayIndicRate}%</h4>
+        <br/>
+        <h5>The Market</h5>
         <p>cUSDC exchange rate : {this.state.exchangeRateCurrent}</p>
         <p>cUSDC Future bid price : {this.state.cTokenFuturePrice}</p>
-        <p>Expiry Date : {this.state.expiryDate}</p>
+        <p>cUSDC Future bid size : {this.state.cTokenFutureSize}</p>
+        <p>Current block number : {this.state.currentBlock}</p>
+        <p>Blocks to Expiry : {this.state.blocksToExpiry}</p>
+        <p>Estimated Expiry Date : {this.state.expiryDate}</p>
+        <br/>
       </div>
     );
   }
@@ -125,9 +177,18 @@ class BalanceComponent extends Component{
     const usdcBalance = usdcBalanceRaw.toFixed(4)
     this.setState({usdcBalance})
 
+    //what is your current futures position
+    const entries = await getEntries(myWalletAddress);
+    const size = entries.size/scaler.cusdc;
+    this.setState({size});
+
+    //what is the price you traded at?
+    const priceTraded = entries.price/scaler.cusdcRate;
+    this.setState({priceTraded});
+
     //what is your balance at expiry?
-    const cTokenFuturePrice = cTokenFuturePriceManual;//exchangeRateCurrent * (1 + overRideRate * dayCount) //await cUsdcContract.methods.exchangeRateCurrent().call()/10**16;
-    const usdcBalanceAtExpiryRaw = cUsdcBalanceRaw*cTokenFuturePrice;
+    //to do need to get a concept of "traded Price"
+    const usdcBalanceAtExpiryRaw = -size*priceTraded;
     const usdcBalanceAtExpiry = usdcBalanceAtExpiryRaw.toFixed(4)
     this.setState({usdcBalanceAtExpiry});
 
@@ -135,6 +196,17 @@ class BalanceComponent extends Component{
     const usdcInterestLockedRaw = usdcBalanceAtExpiryRaw - usdcBalanceRaw;
     const usdcInterestLocked = usdcInterestLockedRaw.toFixed(4)
     this.setState({usdcInterestLocked});
+
+    //date should come from the IRS Agent smart contract, but using a hardcode for now
+    //time to expiry? - doing this operation multiple times...
+    const blocksToExpiry = await xblck();
+    const timeLeft = blocksToExpiry * 13 * 1000
+    const dayCount = timeLeft/msPerYear;
+
+
+    //what is the fixed rate we've locked in?
+    const impliedFixedRate = (usdcInterestLocked/usdcBalanceRaw*1/dayCount*100).toFixed(3);
+    this.setState({impliedFixedRate})
 
   }
   constructor(props){
@@ -145,10 +217,14 @@ class BalanceComponent extends Component{
   render(){
     return (
       <div>
+        <h5>Your Position</h5>
         <p>Your current cUSDC balance is : {this.state.cUsdcBalance} </p>
         <p>Equivalent USDC balance is : {this.state.usdcBalance}</p>
+        <p>Your position in cUSDC futures are : {this.state.size}</p>
+        <p>You sold them at : {this.state.priceTraded}</p>
         <p>At expiry you will have : {this.state.usdcBalanceAtExpiry} </p>
         <p>You have locked in : {this.state.usdcInterestLocked} USDC</p>
+        <p>The implied fixed rate is : {this.state.impliedFixedRate}%</p>
       </div>
     );
   }
@@ -207,11 +283,6 @@ class DepositForm extends React.Component {
     const USDCquantityBig = new BigNumber(USDCquantity*scaler.usdc);
     const cUSDCquantity = new BigNumber(USDCquantity/exchangeRate);
     const cUSDCquantityBig = new BigNumber(cUSDCquantity*scaler.cusdc);
-    console.log('current exchange rate is ' + exchangeRate);
-    console.log('USDC amount is ' + USDCquantity);
-    console.log('cUSDC amount is ' + cUSDCquantity);
-    console.log('the block chain gets USDC amount of ' + USDCquantityBig);
-    console.log('and cUSDC amount of ' + cUSDCquantityBig);
 
     const accounts = await web3.eth.getAccounts();
     myWalletAddress = accounts[0];
@@ -222,15 +293,31 @@ class DepositForm extends React.Component {
     console.log(`USDC contract "Approve" operation successful.`);
     console.log(`Supplying USDC to the Irs Agent...`, '\n');
 
+    //what is the current balance?
     const balance = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
     console.log('cUSDC balance in irs agent contract is ' + balance);
     
+    //deposit into the contract
     await irsAgentContract.methods.deposit(USDCquantityBig, usdcAddress).send({'from':myWalletAddress}, hash);
-    
-    console.log(`cUSDC deposit operation successful.`, '\n')
+    console.log(`cUSDC deposit operation successful.`)
+
+    //what is the new balance now?
     const balanceNew = await irsAgentContract.methods.balanceOf(myWalletAddress).call();
+    const balanceChange = balanceNew - balance;
     console.log('cUSDC balance in irs agent contract is now ' + balanceNew);
-    //alert('You want to deposit ' + this.state.value + ' USDC');
+    console.log('we have added cUSDC amount of ' + balanceChange);
+    console.log('we are selling cUSDC futures ' + balanceChange);
+
+    //what is the current future bid price?
+    const cTokenFuturePrice = await fp();
+    const fpBig = new BigNumber(cTokenFuturePrice*scaler.cusdcRate);
+    console.log('getting current future bid price : ' + fpBig);
+
+    await irsAgentContract.methods.openShort(balanceChange, fpBig).send({'from' : myWalletAddress}, hash);
+    console.log('short position opened successfully ' + hash);
+
+    const entries = await getEntries(myWalletAddress);
+    console.log('we got the entries. Here is the balance ' + entries.balance);
 
     event.preventDefault();
   }
@@ -359,7 +446,7 @@ function App() {
             <br />
             <DepositForm/>
             <br />
-            <Ticker />
+            <Ticker/>
             <BalanceComponent />
             <br/>
             <h4>Order Entry</h4>
